@@ -1,0 +1,2820 @@
+diff --git a/.gitignore b/.gitignore
+index 86a1ba0d9..480b7e59b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -183,3 +183,5 @@ sphinx_*/
+ 
+ # Rust analyzer configuration
+ /rust-project.json
++
++/_out
+diff --git a/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts b/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
+index 3e0319fdb..4787a38c9 100644
+--- a/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
++++ b/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
+@@ -16,26 +16,159 @@
+ 
+ /dts-v1/;
+ 
++#include <dt-bindings/pwm/pwm.h>
+ #include "bcm2712-rpi-5-b-ovl-rp1.dts"
+ 
++&pcie2 {
++	#include "rp1-nexus.dtsi"
++};
++
+ / {
++
++	fan: cooling_fan {
++		status = "okay";
++		compatible = "pwm-fan";
++		#cooling-cells = <2>;
++		cooling-min-state = <0>;
++		cooling-max-state = <3>;
++		cooling-levels = <0 75 125 175 250>;
++		pwms = <&rp1_pwm1 3 41566 PWM_POLARITY_INVERTED>;
++		rpm-regmap = <&rp1_pwm1>;
++		rpm-offset = <0x3c>;
++	};
++
++	thermal-zones {
++		cpu_thermal: cpu-thermal {
++			polling-delay-passive = <1000>;
++			polling-delay = <1000>;
++			coefficients = <(-550) 450000>;
++			thermal-sensors = <&thermal>;
++
++			thermal_trips: trips {
++			};
++
++			cooling_maps: cooling-maps {
++			};
++		};
++	};
++
++	rp1_firmware: rp1_firmware {
++		compatible = "raspberrypi,rp1-firmware", "simple-mfd";
++		mboxes = <&rp1_mbox 0>;
++		shmem = <&rp1_fw_shmem>;
++	};
++
++	rp1_vdd_3v3: rp1_vdd_3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd-3v3";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-always-on;
++	};
++
+ 	aliases {
+ 		ethernet0 = &rp1_eth;
+ 	};
+ };
+ 
+-&pcie2 {
+-	#include "rp1-nexus.dtsi"
++&thermal_trips {
++	cpu_tepid: cpu-tepid {
++		temperature = <50000>;
++		hysteresis = <5000>;
++		type = "active";
++	};
++
++	cpu_warm: cpu-warm {
++		temperature = <60000>;
++		hysteresis = <5000>;
++		type = "active";
++	};
++
++	cpu_hot: cpu-hot {
++		temperature = <67500>;
++		hysteresis = <5000>;
++		type = "active";
++	};
++
++	cpu_vhot: cpu-vhot {
++		temperature = <75000>;
++		hysteresis = <5000>;
++		type = "active";
++	};
++
++	cpu_crit: cpu-crit {
++		temperature	= <110000>;
++		hysteresis	= <0>;
++		type = "critical";
++	};
++};
++
++&cooling_maps {
++	tepid {
++		trip = <&cpu_tepid>;
++		cooling-device = <&fan 1 1>;
++	};
++
++	warm {
++		trip = <&cpu_warm>;
++		cooling-device = <&fan 2 2>;
++	};
++
++	hot {
++		trip = <&cpu_hot>;
++		cooling-device = <&fan 3 3>;
++	};
++
++	vhot {
++		trip = <&cpu_vhot>;
++		cooling-device = <&fan 4 4>;
++	};
++
++	melt {
++		trip = <&cpu_crit>;
++		cooling-device = <&fan 4 4>;
++	};
++};
++
++&rp1 {
++	status = "okay";
++};
++
++&rp1_mbox {
++	status = "okay";
++};
++
++&rp1_pio {
++	status = "okay";
++};
++
++&rp1_dma {
++	status = "okay";
++};
++
++&rp1_clocks {
++	status = "okay";
++};
++
++&rp1_pwm1 {
++	pinctrl-0 = <&rp1_pwm1_gpio45>;
++	pinctrl-names = "default";
++	status = "okay";
+ };
+ 
+ &rp1_eth {
+-	assigned-clocks = <&rp1_clocks RP1_CLK_ETH_TSU>,
+-			  <&rp1_clocks RP1_CLK_ETH>;
+-	assigned-clock-rates = <50000000>,
+-			       <125000000>;
++	assigned-clocks =
++		<&rp1_clocks RP1_CLK_ETH_TSU>,
++		<&rp1_clocks RP1_CLK_ETH>;
++	assigned-clock-rates =
++		<50000000>,
++		<125000000>;
+ 	status = "okay";
+ 	phy-mode = "rgmii-id";
+ 	phy-handle = <&phy1>;
++	cdns,ar2r-max-pipe = [08];
++	cdns,aw2w-max-pipe = [08];
++	cdns,use-aw2b-fill;
+ 
+ 	mdio {
+ 		reg = <0x1>;
+@@ -45,12 +178,46 @@ mdio {
+ 		#size-cells = <0>;
+ 
+ 		phy1: ethernet-phy@1 {
++			brcm,powerdown-enable;
++			// eee-broken-100tx;
++			// eee-broken-1000t;
+ 			reg = <0x1>;
+ 		};
+ 	};
+ };
+ 
+ &rp1_gpio {
++
++	rp1_sdio0_22_27: rp1_sdio0_22_27 {
++		pin_clk {
++			function = "sd0";
++			pins = "gpio22";
++			bias-disable;
++			drive-strength = <12>;
++			slew-rate = <1>;
++		};
++		pin_cmd {
++			function = "sd0";
++			pins = "gpio23";
++			bias-pull-up;
++			drive-strength = <12>;
++			slew-rate = <1>;
++		};
++		pins_dat {
++			function = "sd0";
++			pins = "gpio24", "gpio25", "gpio26", "gpio27";
++			bias-pull-up;
++			drive-strength = <12>;
++			slew-rate = <1>;
++		};
++	};
++
++	rp1_pwm1_gpio45: rp1_pwm1_gpio45 {
++		function = "pwm1";
++		pins = "gpio45";
++		bias-pull-down;
++	};
++
+ 	usb_vbus_default_state: usb-vbus-default-state {
+ 		function = "vbus1";
+ 		groups = "vbus1";
+diff --git a/arch/arm64/boot/dts/broadcom/bcm2712.dtsi b/arch/arm64/boot/dts/broadcom/bcm2712.dtsi
+index 205b87f55..c9fab9a16 100644
+--- a/arch/arm64/boot/dts/broadcom/bcm2712.dtsi
++++ b/arch/arm64/boot/dts/broadcom/bcm2712.dtsi
+@@ -291,6 +291,18 @@ interrupt-controller@7d517000 {
+ 			#interrupt-cells = <1>;
+ 		};
+ 
++		avs_monitor: avs-monitor@7d542000 {
++			compatible = "brcm,bcm2711-avs-monitor",
++						"syscon", "simple-mfd";
++			reg = <0x7d542000 0xf00>;
++			status = "okay";
++
++			thermal: thermal {
++				compatible = "brcm,bcm2711-thermal";
++				#thermal-sensor-cells = <0>;
++			};
++		};
++
+ 		gio_aon: gpio@7d517c00 {
+ 			compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+ 			reg = <0x7d517c00 0x40>;
+@@ -481,17 +493,19 @@ axi: axi {
+ 		#address-cells = <2>;
+ 		#size-cells = <2>;
+ 
+-		ranges = <0x00 0x00000000  0x00 0x00000000  0x10 0x00000000>,
+-			 <0x10 0x00000000  0x10 0x00000000  0x01 0x00000000>,
+-			 <0x14 0x00000000  0x14 0x00000000  0x04 0x00000000>,
+-			 <0x18 0x00000000  0x18 0x00000000  0x04 0x00000000>,
+-			 <0x1c 0x00000000  0x1c 0x00000000  0x04 0x00000000>;
++		ranges =
++			<0x00 0x0   0x00 0x0   0x10 0x0>,
++			<0x10 0x0   0x10 0x0   0x01 0x0>,
++			<0x14 0x0   0x14 0x0   0x04 0x0>,
++			<0x18 0x0   0x18 0x0   0x04 0x0>,
++			<0x1c 0x0   0x1c 0x0   0x04 0x0>;
+ 
+-		dma-ranges = <0x00 0x00000000  0x00 0x00000000  0x10 0x00000000>,
+-			     <0x10 0x00000000  0x10 0x00000000  0x01 0x00000000>,
+-			     <0x14 0x00000000  0x14 0x00000000  0x04 0x00000000>,
+-			     <0x18 0x00000000  0x18 0x00000000  0x04 0x00000000>,
+-			     <0x1c 0x00000000  0x1c 0x00000000  0x04 0x00000000>;
++		dma-ranges =
++			<0x00 0x0   0x00 0x0   0x10 0x0>,
++			<0x10 0x0   0x10 0x0   0x01 0x0>,
++			<0x14 0x0   0x14 0x0   0x04 0x0>,
++			<0x18 0x0   0x18 0x0   0x04 0x0>,
++			<0x1c 0x0   0x1c 0x0   0x04 0x0>;
+ 
+ 		vc4: gpu {
+ 			compatible = "brcm,bcm2712-vc6";
+@@ -560,15 +574,17 @@ pcie1: pcie@1000110000 {
+ 
+ 			ranges =
+ 				/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
+-				<0x02000000 0x00 0x00000000 0x1b 0x00000000 0x00 0xfffffffc>,
++				<0x02000000 0x00 0x0   0x1b 0x0   0x00 0xfffffffc>,
++
+ 				/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
+-				<0x43000000 0x04 0x00000000 0x18 0x00000000 0x03 0x00000000>;
++				<0x43000000 0x04 0x0   0x18 0x0   0x03 0x0>;
+ 
+ 			dma-ranges =
+ 				/* 64GiB, 64-bit, non-prefetchable at PCIe 10_0000_0000 */
+-				<0x03000000 0x10 0x00000000 0x00 0x00000000 0x10 0x00000000>,
++				<0x03000000 0x10 0x0   0x00 0x0   0x10 0x0>,
++
+ 				/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP1 */
+-				<0x03000000 0xff 0xfffff000 0x10 0x00131000 0x00 0x00001000>;
++				<0x03000000 0xff 0xfffff000   0x10 0x00131000   0x00 0x00001000>;
+ 
+ 			status = "disabled";
+ 		};
+@@ -599,17 +615,20 @@ pcie2: pcie@1000120000 {
+ 
+ 			ranges =
+ 				/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
+-				<0x02000000 0x00 0x00000000 0x1f 0x00000000 0x00 0xfffffffc>,
++				<0x02000000 0x00 0x0   0x1f 0x0   0x00 0xfffffffc>,
++
+ 				/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
+-				<0x43000000 0x04 0x00000000 0x1c 0x00000000 0x03 0x00000000>;
++				<0x43000000 0x04 0x0   0x1c 0x0   0x03 0x0>;
+ 
+ 			dma-ranges =
+-				/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
+-				<0x02000000 0x00 0x00000000 0x1f 0x00000000 0x00 0x00400000>,
+ 				/* 64GiB, 64-bit, prefetchable at PCIe 10_0000_0000 */
+-				<0x43000000 0x10 0x00000000 0x00 0x00000000 0x10 0x00000000>,
++				<0x43000000 0x10 0x0   0x00 0x0   0x10 0x0>,
++
++				/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
++				<0x02000000 0x00 0x0   0x1f 0x0   0x00 0x410000>,
++
+ 				/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP0 */
+-				<0x03000000 0xff 0xfffff000 0x10 0x00130000 0x00 0x00001000>;
++				<0x03000000 0xff 0xfffff000   0x10 0x00130000   0x00 0x1000>;
+ 
+ 			status = "disabled";
+ 		};
+diff --git a/arch/arm64/boot/dts/broadcom/rp1-common.dtsi b/arch/arm64/boot/dts/broadcom/rp1-common.dtsi
+index 5a815c379..48cc16cd6 100644
+--- a/arch/arm64/boot/dts/broadcom/rp1-common.dtsi
++++ b/arch/arm64/boot/dts/broadcom/rp1-common.dtsi
+@@ -3,51 +3,141 @@
+ #include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/interrupt-controller/irq.h>
+ #include <dt-bindings/clock/raspberrypi,rp1-clocks.h>
++#include <dt-bindings/mfd/rp1.h>
+ 
+-pci_ep_bus: pci-ep-bus@1 {
+-	compatible = "simple-bus";
+-	ranges = <0x00 0x40000000  0x01 0x00 0x00000000  0x00 0x00400000>;
+-	dma-ranges = <0x10 0x00000000  0x43000000 0x10 0x00000000  0x10 0x00000000>;
++rp1: rp1 {
++	compatible = "raspberrypi,rp1-mfd", "simple-bus";
++	status = "disabled";
+ 	#address-cells = <2>;
+ 	#size-cells = <2>;
+ 
+-	rp1_clocks: clocks@40018000 {
++	interrupt-controller;
++	#interrupt-cells = <2>;
++	interrupt-parent = <&rp1>;
++
++	ranges =
++			<0xc0 0x40000000   0x2000000 0x0 0x0   0x0 0x410000>;
++
++	dma-ranges =
++			<0x10 0x0          0x43000000 0x10 0x0   0x10 0x0>,
++			<0xc0 0x40000000   0x02000000 0x00 0x0   0x00 0x410000>;
++//	  <0x00 0x0          0x02000000 0x10 0x0   0x10 0x00
++
++	sram: sram@400000 {
++		compatible = "mmio-sram";
++		reg = <0xc0 0x40400000   0x0 0x10000>;
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges = <0x0   0xc0 0x40400000   0x10000>;
++
++		rp1_fw_shmem: shmem@ff00 {
++			compatible = "raspberrypi,rp1-shmem";
++			reg = <0xff00 0x100>; // firmware mailbox buffer
++		};
++	};
++
++	rp1_pio: pio@178000 {
++		compatible = "raspberrypi,rp1-pio";
++		reg = <0xc0 0x40178000  0x0 0x20>;
++		firmware = <&rp1_firmware>;
++		dmas =
++			<&rp1_dma RP1_DMA_PIO_CH0_TX>, <&rp1_dma RP1_DMA_PIO_CH0_RX>,
++			<&rp1_dma RP1_DMA_PIO_CH1_TX>, <&rp1_dma RP1_DMA_PIO_CH1_RX>,
++			<&rp1_dma RP1_DMA_PIO_CH2_TX>, <&rp1_dma RP1_DMA_PIO_CH2_RX>,
++			<&rp1_dma RP1_DMA_PIO_CH3_TX>, <&rp1_dma RP1_DMA_PIO_CH3_RX>;
++		dma-names = "tx0", "rx0", "tx1", "rx1", "tx2", "rx2", "tx3", "rx3";
++		status = "disabled";
++	};
++
++	rp1_dma: dma@188000 {
++		compatible = "snps,axi-dma-1.01a";
++		reg = <0xc0 0x40188000  0x0 0x1000>;
++		interrupts = <RP1_INT_DMA IRQ_TYPE_LEVEL_HIGH>;
++		clocks = <&rp1_clocks RP1_CLK_DMA &rp1_clocks RP1_CLK_SYS>;
++		clock-names = "core-clk", "cfgr-clk";
++
++		#dma-cells = <1>;
++		dma-channels = <8>;
++		snps,dma-masters = <1>;
++		snps,dma-targets = <64>;
++		snps,data-width = <4>; // (8 << 4) == 128 bits
++		snps,block-size = <0x40000 0x40000 0x40000 0x40000 0x40000 0x40000 0x40000 0x40000>;
++		snps,priority = <0 1 2 3 4 5 6 7>;
++		snps,axi-max-burst-len = <8 8 4 4 4 4 4 4>;
++		status = "disabled";
++	};
++
++	rp1_mbox: mailbox@8000 {
++		compatible = "raspberrypi,rp1-mbox";
++		status = "disabled";
++		reg = <0xc0 0x40008000  0x0 0x4000>;  // SYSCFG
++		interrupts = <RP1_INT_SYSCFG IRQ_TYPE_LEVEL_HIGH>;
++		#mbox-cells = <1>;
++	};
++
++	rp1_clocks: clocks@18000 {
+ 		compatible = "raspberrypi,rp1-clocks";
+-		reg = <0x00 0x40018000 0x0 0x10038>;
++		reg = <0xc0 0x40018000 0x0 0x10038>;
+ 		#clock-cells = <1>;
+ 		clocks = <&clk_rp1_xosc>;
+-		assigned-clocks = <&rp1_clocks RP1_PLL_SYS_CORE>,
+-				  <&rp1_clocks RP1_PLL_SYS>,
+-				  <&rp1_clocks RP1_PLL_SYS_SEC>,
+-				  <&rp1_clocks RP1_CLK_SYS>;
+-		assigned-clock-rates = <1000000000>, // RP1_PLL_SYS_CORE
+-				       <200000000>,  // RP1_PLL_SYS
+-				       <125000000>,  // RP1_PLL_SYS_SEC
+-				       <200000000>;  // RP1_CLK_SYS
++		status = "disabled";
++		assigned-clocks =
++			<&rp1_clocks RP1_PLL_SYS_CORE>,
++			<&rp1_clocks RP1_PLL_SYS>,
++			<&rp1_clocks RP1_PLL_SYS_SEC>,
++			<&rp1_clocks RP1_CLK_SYS>;
++		assigned-clock-rates =
++			<1000000000>, // RP1_PLL_SYS_CORE
++			<200000000>,  // RP1_PLL_SYS
++			<125000000>,  // RP1_PLL_SYS_SEC
++			<200000000>;  // RP1_CLK_SYS
++	};
++
++	rp1_pwm0: pwm@98000 {
++		compatible = "raspberrypi,rp1-pwm";
++		reg = <0xc0 0x40098000  0x0 0x100>;
++		#pwm-cells = <3>;
++		clocks = <&rp1_clocks RP1_CLK_PWM0>;
++		assigned-clocks = <&rp1_clocks RP1_CLK_PWM0>;
++		assigned-clock-rates = <50000000>;
++		status = "disabled";
++	};
++
++	rp1_pwm1: pwm@9c000 {
++		compatible = "raspberrypi,rp1-pwm";
++		reg = <0xc0 0x4009c000  0x0 0x100>;
++		#pwm-cells = <3>;
++		clocks = <&rp1_clocks RP1_CLK_PWM1>;
++		assigned-clocks = <&rp1_clocks RP1_CLK_PWM1>;
++		assigned-clock-rates = <50000000>;
++		status = "disabled";
+ 	};
+ 
+-	rp1_gpio: pinctrl@400d0000 {
++	rp1_gpio: pinctrl@d0000 {
+ 		compatible = "raspberrypi,rp1-gpio";
+-		reg = <0x00 0x400d0000  0x0 0xc000>,
+-		      <0x00 0x400e0000  0x0 0xc000>,
+-		      <0x00 0x400f0000  0x0 0xc000>;
++		reg =
++			<0xc0 0x400d0000  0x0 0xc000>,
++			<0xc0 0x400e0000  0x0 0xc000>,
++			<0xc0 0x400f0000  0x0 0xc000>;
+ 		gpio-controller;
+ 		#gpio-cells = <2>;
+ 		interrupt-controller;
+ 		#interrupt-cells = <2>;
+-		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>,
+-			     <1 IRQ_TYPE_LEVEL_HIGH>,
+-			     <2 IRQ_TYPE_LEVEL_HIGH>;
++		interrupts =
++			<0 IRQ_TYPE_LEVEL_HIGH>,
++			<1 IRQ_TYPE_LEVEL_HIGH>,
++			<2 IRQ_TYPE_LEVEL_HIGH>;
+ 	};
+ 
+-	rp1_eth: ethernet@40100000 {
+-		compatible = "raspberrypi,rp1-gem";
+-		reg = <0x00 0x40100000  0x0 0x4000>;
++	rp1_eth: ethernet@100000 {
++		compatible = "raspberrypi,rp1-gem", "cdns,macb";
++		reg = <0xc0 0x40100000  0x0 0x4000>;
+ 		interrupts = <6 IRQ_TYPE_LEVEL_HIGH>;
+-		clocks = <&rp1_clocks RP1_CLK_SYS>,
+-			 <&rp1_clocks RP1_CLK_SYS>,
+-			 <&rp1_clocks RP1_CLK_ETH>,
+-			 <&rp1_clocks RP1_CLK_ETH_TSU>;
++		clocks =
++			<&rp1_clocks RP1_CLK_SYS>,
++			<&rp1_clocks RP1_CLK_SYS>,
++			<&rp1_clocks RP1_CLK_ETH>,
++			<&rp1_clocks RP1_CLK_ETH_TSU>;
+ 		clock-names = "pclk", "hclk", "tx_clk", "tsu_clk";
+ 		local-mac-address = [00 00 00 00 00 00];
+ 		status = "disabled";
+@@ -56,9 +146,9 @@ rp1_eth: ethernet@40100000 {
+ 		#size-cells = <0>;
+ 	};
+ 
+-	rp1_usb0: usb@40200000 {
++	rp1_usb0: usb@200000 {
+ 		compatible = "snps,dwc3";
+-		reg = <0x00 0x40200000  0x0 0x100000>;
++		reg = <0xc0 0x40200000  0x0 0x100000>;
+ 		interrupts = <31 IRQ_TYPE_EDGE_RISING>;
+ 		dr_mode = "host";
+ 		usb3-lpm-capable;
+@@ -70,9 +160,9 @@ rp1_usb0: usb@40200000 {
+ 		status = "disabled";
+ 	};
+ 
+-	rp1_usb1: usb@40300000 {
++	rp1_usb1: usb@300000 {
+ 		compatible = "snps,dwc3";
+-		reg = <0x00 0x40300000  0x0 0x100000>;
++		reg = <0xc0 0x40300000  0x0 0x100000>;
+ 		interrupts = <36 IRQ_TYPE_EDGE_RISING>;
+ 		dr_mode = "host";
+ 		usb3-lpm-capable;
+diff --git a/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi b/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi
+index 0ef30d7f1..b3436feb9 100644
+--- a/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi
++++ b/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi
+@@ -4,9 +4,24 @@ rp1_nexus {
+ 	compatible = "pci1de4,1";
+ 	#address-cells = <3>;
+ 	#size-cells = <2>;
+-	ranges = <0x01 0x00 0x00000000
+-		  0x02000000 0x00 0x00000000
+-		  0x0 0x400000>;
++
++	ranges =
++		/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
++		<0x02000000 0x00 0x0   0x02000000 0x00 0x0   0x00 0xfffffffc>,
++
++		/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
++		<0x43000000 0x04 0x0   0x43000000 0x04 0x0   0x03 0x0>;
++
++	dma-ranges =
++		/* 64GiB, 64-bit, prefetchable at PCIe 10_0000_0000 */
++		<0x43000000 0x10 0x0   0x43000000 0x10 0x0   0x10 0x0>,
++
++		/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
++		<0x02000000 0x00 0x0   0x02000000 0x00 0x0   0x00 0x410000>,
++
++		/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP0 */
++		<0x03000000 0xff 0xfffff000   0x03000000 0xff 0xfffff000   0x00 0x1000>;
++
+ 	interrupt-controller;
+ 	#interrupt-cells = <2>;
+ 
+diff --git a/drivers/clk/Kconfig b/drivers/clk/Kconfig
+index 3a1611008..850f7e211 100644
+--- a/drivers/clk/Kconfig
++++ b/drivers/clk/Kconfig
+@@ -89,8 +89,8 @@ config COMMON_CLK_RK808
+ 
+ config COMMON_CLK_RP1
+ 	tristate "Raspberry Pi RP1-based clock support"
+-	depends on MISC_RP1 || COMPILE_TEST
+-	default MISC_RP1
++	depends on MFD_RP1 || COMPILE_TEST
++	default MFD_RP1
+ 	help
+ 	  Enable common clock framework support for Raspberry Pi RP1.
+ 	  This multi-function device has 3 main PLLs and several clock
+diff --git a/drivers/clk/Makefile b/drivers/clk/Makefile
+index 61ec08404..20b035157 100644
+--- a/drivers/clk/Makefile
++++ b/drivers/clk/Makefile
+@@ -85,7 +85,7 @@ obj-$(CONFIG_CLK_LS1028A_PLLDIG)	+= clk-plldig.o
+ obj-$(CONFIG_COMMON_CLK_PWM)		+= clk-pwm.o
+ obj-$(CONFIG_CLK_QORIQ)			+= clk-qoriq.o
+ obj-$(CONFIG_COMMON_CLK_RK808)		+= clk-rk808.o
+-obj-$(CONFIG_COMMON_CLK_RP1)            += clk-rp1.o
++obj-$(CONFIG_COMMON_CLK_RP1)		+= clk-rp1.o
+ obj-$(CONFIG_COMMON_CLK_RPMI)		+= clk-rpmi.o
+ obj-$(CONFIG_COMMON_CLK_HI655X)		+= clk-hi655x.o
+ obj-$(CONFIG_COMMON_CLK_S2MPS11)	+= clk-s2mps11.o
+diff --git a/drivers/clk/clk-rp1.c b/drivers/clk/clk-rp1.c
+index fd144755b..1eef22e7c 100644
+--- a/drivers/clk/clk-rp1.c
++++ b/drivers/clk/clk-rp1.c
+@@ -263,7 +263,7 @@
+ #define CLK_DIV_FRAC_BITS		16
+ 
+ #define LOCK_TIMEOUT_US			100000
+-#define LOCK_POLL_DELAY_US		5
++#define LOCK_POLL_DELAY_US	5
+ 
+ #define MAX_CLK_PARENTS			16
+ 
+@@ -2393,6 +2393,19 @@ static const struct regmap_config rp1_clk_regmap_cfg = {
+ 
+ static int rp1_clk_probe(struct platform_device *pdev)
+ {
++
++	struct resource *res;
++
++	/* If there's no memory resource yet, it's too early.
++	   Return EPROBE_DEFER to tell the kernel to wait for the PCI driver. */
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!res) {
++			dev_warn(&pdev->dev, "DEBUG: No memory resource found in DT node!\n");
++			return -EPROBE_DEFER;
++	}
++
++	dev_info(&pdev->dev, "DEBUG: Found memory resource: %pR\n", res);
++
+ 	const size_t asize = ARRAY_SIZE(clk_desc_array);
+ 	struct rp1_clk_desc *desc;
+ 	struct device *dev = &pdev->dev;
+diff --git a/drivers/firmware/Kconfig b/drivers/firmware/Kconfig
+index bbd2155d8..37359a5de 100644
+--- a/drivers/firmware/Kconfig
++++ b/drivers/firmware/Kconfig
+@@ -119,6 +119,15 @@ config RASPBERRYPI_FIRMWARE
+ 	  This option enables support for communicating with the firmware on the
+ 	  Raspberry Pi.
+ 
++config FIRMWARE_RP1
++	tristate "RP1 Firmware Driver"
++	depends on MBOX_RP1
++	help
++	  The Raspberry Pi RP1 processor presents a firmware
++	  interface using shared memory and a mailbox. To enable
++	  the driver that communicates with it, say Y. Otherwise,
++	  say N.
++
+ config FW_CFG_SYSFS
+ 	tristate "QEMU fw_cfg device support in sysfs"
+ 	depends on SYSFS && (ARM || ARM64 || PARISC || PPC_PMAC || RISCV || SPARC || X86)
+diff --git a/drivers/firmware/Makefile b/drivers/firmware/Makefile
+index 4ddec2820..710214194 100644
+--- a/drivers/firmware/Makefile
++++ b/drivers/firmware/Makefile
+@@ -15,6 +15,7 @@ obj-$(CONFIG_ISCSI_IBFT)	+= iscsi_ibft.o
+ obj-$(CONFIG_FIRMWARE_MEMMAP)	+= memmap.o
+ obj-$(CONFIG_MTK_ADSP_IPC)	+= mtk-adsp-ipc.o
+ obj-$(CONFIG_RASPBERRYPI_FIRMWARE) += raspberrypi.o
++obj-$(CONFIG_FIRMWARE_RP1)	+= rp1-fw.o
+ obj-$(CONFIG_FW_CFG_SYSFS)	+= qemu_fw_cfg.o
+ obj-$(CONFIG_SYSFB)		+= sysfb.o
+ obj-$(CONFIG_SYSFB_SIMPLEFB)	+= sysfb_simplefb.o
+diff --git a/drivers/firmware/rp1-fw.c b/drivers/firmware/rp1-fw.c
+new file mode 100644
+index 000000000..d5b8a7203
+--- /dev/null
++++ b/drivers/firmware/rp1-fw.c
+@@ -0,0 +1,312 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ *  Copyright (C) 2023-24 Raspberry Pi Ltd.
++ *
++ * Parts of this driver are based on:
++ *  - raspberrypi.c, by Eric Anholt <eric@anholt.net>
++ *    Copyright (C) 2015 Broadcom
++ */
++
++#include <linux/dma-mapping.h>
++#include <linux/kref.h>
++#include <linux/mailbox_client.h>
++#include <linux/module.h>
++#include <linux/of_address.h>
++#include <linux/of_platform.h>
++#include <linux/platform_device.h>
++#include <linux/rp1-firmware.h>
++
++#define RP1_MAILBOX_FIRMWARE		0
++
++enum rp1_firmware_ops {
++	MBOX_SUCCESS		= 0x0000,
++	GET_FIRMWARE_VERSION	= 0x0001, // na -> 160-bit version
++	GET_FEATURE		= 0x0002, // FOURCC -> op base (0 == unsupported), op count
++
++	COMMON_COUNT
++};
++
++struct rp1_firmware {
++	struct mbox_client cl;
++	struct mbox_chan *chan;	/* The doorbell channel */
++	uint32_t __iomem *buf;	/* The shared buffer */
++	u32 buf_size;		/* The size of the shared buffer */
++	struct completion c;
++
++	struct kref consumers;
++};
++
++struct rp1_get_feature_resp {
++	uint32_t op_base;
++	uint32_t op_count;
++};
++
++static DEFINE_MUTEX(transaction_lock);
++
++static const struct of_device_id rp1_firmware_of_match[] = {
++	{ .compatible = "raspberrypi,rp1-firmware", },
++	{},
++};
++MODULE_DEVICE_TABLE(of, rp1_firmware_of_match);
++
++static void response_callback(struct mbox_client *cl, void *msg)
++{
++	struct rp1_firmware *fw = container_of(cl, struct rp1_firmware, cl);
++
++	complete(&fw->c);
++}
++
++/*
++ * Sends a request to the RP1 firmware and synchronously waits for the reply.
++ * Returns zero or a positive count of response bytes on success, negative on
++ * error.
++ */
++
++int rp1_firmware_message(struct rp1_firmware *fw, uint16_t op,
++			 const void *data, unsigned int data_len,
++			 void *resp, unsigned int resp_space)
++{
++	int ret;
++	u32 rc;
++
++	if (data_len + 4 > fw->buf_size)
++		return -EINVAL;
++
++	mutex_lock(&transaction_lock);
++
++	memcpy_toio(&fw->buf[1], data, data_len);
++	writel((op << 16) | data_len, fw->buf);
++
++	reinit_completion(&fw->c);
++	ret = mbox_send_message(fw->chan, NULL);
++	if (ret >= 0) {
++		if (wait_for_completion_timeout(&fw->c, HZ))
++			ret = 0;
++		else
++			ret = -ETIMEDOUT;
++	} else {
++		dev_err(fw->cl.dev, "mbox_send_message returned %d\n", ret);
++	}
++
++	if (ret == 0) {
++		rc = readl(fw->buf);
++		if (rc & 0x80000000) {
++			ret = (int32_t)rc;
++		} else {
++			ret = min(rc, resp_space);
++			memcpy_fromio(resp, &fw->buf[1], ret);
++		}
++	}
++
++	mutex_unlock(&transaction_lock);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(rp1_firmware_message);
++
++static void rp1_firmware_delete(struct kref *kref)
++{
++	struct rp1_firmware *fw = container_of(kref, struct rp1_firmware, consumers);
++
++	mbox_free_channel(fw->chan);
++	kfree(fw);
++}
++
++void rp1_firmware_put(struct rp1_firmware *fw)
++{
++	if (!IS_ERR_OR_NULL(fw))
++		kref_put(&fw->consumers, rp1_firmware_delete);
++}
++EXPORT_SYMBOL_GPL(rp1_firmware_put);
++
++int rp1_firmware_get_feature(struct rp1_firmware *fw, uint32_t fourcc,
++			     uint32_t *op_base, uint32_t *op_count)
++{
++	struct rp1_get_feature_resp resp;
++	int ret;
++
++	memset(&resp, 0, sizeof(resp));
++	ret = rp1_firmware_message(fw, GET_FEATURE,
++				   &fourcc, sizeof(fourcc),
++				   &resp, sizeof(resp));
++	*op_base = resp.op_base;
++	*op_count = resp.op_count;
++	if (ret < 0)
++		return ret;
++	if (ret < sizeof(resp) || !resp.op_base)
++		return -EOPNOTSUPP;
++	return 0;
++}
++EXPORT_SYMBOL_GPL(rp1_firmware_get_feature);
++
++static void devm_rp1_firmware_put(void *data)
++{
++	struct rp1_firmware *fw = data;
++
++	rp1_firmware_put(fw);
++}
++
++/**
++ * rp1_firmware_get - Get pointer to rp1_firmware structure.
++ *
++ * The reference to rp1_firmware has to be released with rp1_firmware_put().
++ *
++ * Returns an error pointer on failure.
++ */
++struct rp1_firmware *rp1_firmware_get(struct device_node *client)
++{
++	const char *match = rp1_firmware_of_match[0].compatible;
++	struct platform_device *pdev;
++	struct device_node *fwnode;
++	struct rp1_firmware *fw = NULL;
++
++	if (!client)
++		return NULL;
++	fwnode = of_parse_phandle(client, "firmware", 0);
++	if (!fwnode)
++		return NULL;
++	if (!of_device_is_compatible(fwnode, match)) {
++		of_node_put(fwnode);
++		return ERR_PTR(-ENXIO);
++	}
++
++	pdev = of_find_device_by_node(fwnode);
++	of_node_put(fwnode);
++
++	if (!pdev)
++		return ERR_PTR(-ENXIO);
++
++	fw = platform_get_drvdata(pdev);
++	if (IS_ERR_OR_NULL(fw))
++		goto err_exit;
++
++	if (!kref_get_unless_zero(&fw->consumers))
++		goto err_exit;
++
++	put_device(&pdev->dev);
++
++	return fw;
++
++err_exit:
++	put_device(&pdev->dev);
++	return fw;
++}
++EXPORT_SYMBOL_GPL(rp1_firmware_get);
++
++/**
++ * devm_rp1_firmware_get - Get pointer to rp1_firmware structure.
++ * @firmware_node:    Pointer to the firmware Device Tree node.
++ *
++ * Returns NULL is the firmware device is not ready.
++ */
++struct rp1_firmware *devm_rp1_firmware_get(struct device *dev, struct device_node *client)
++{
++	struct rp1_firmware *fw;
++	int ret;
++
++	fw = rp1_firmware_get(client);
++	if (IS_ERR_OR_NULL(fw))
++		return fw;
++
++	ret = devm_add_action_or_reset(dev, devm_rp1_firmware_put, fw);
++	if (ret)
++		return ERR_PTR(ret);
++
++	return fw;
++}
++EXPORT_SYMBOL_GPL(devm_rp1_firmware_get);
++
++static int rp1_firmware_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct device_node *shmem;
++	struct rp1_firmware *fw;
++	struct resource res;
++	uint32_t version[5];
++	int ret;
++
++	dev_dbg(dev, "probe start\n");
++
++	shmem = of_parse_phandle(dev->of_node, "shmem", 0);
++	if (!of_device_is_compatible(shmem, "raspberrypi,rp1-shmem")) {
++		of_node_put(shmem);
++		return -ENXIO;
++	}
++
++	ret = of_address_to_resource(shmem, 0, &res);
++	of_node_put(shmem);
++	if (ret) {
++		dev_err(dev, "failed to get shared memory (%pOF) - %d\n", shmem, ret);
++		return ret;
++	}
++
++	/*
++	 * Memory will be freed by rp1_firmware_delete() once all users have
++	 * released their firmware handles. Don't use devm_kzalloc() here.
++	 */
++	fw = kzalloc(sizeof(*fw), GFP_KERNEL);
++	if (!fw)
++		return -ENOMEM;
++
++	fw->buf_size = resource_size(&res);
++	fw->buf = devm_ioremap(dev, res.start, fw->buf_size);
++	if (!fw->buf) {
++		dev_err(dev, "failed to ioremap shared memory\n");
++		kfree(fw);
++		return -EADDRNOTAVAIL;
++	}
++
++	fw->cl.dev = dev;
++	fw->cl.rx_callback = response_callback;
++	fw->cl.tx_block = false;
++
++	fw->chan = mbox_request_channel(&fw->cl, RP1_MAILBOX_FIRMWARE);
++	if (IS_ERR(fw->chan)) {
++		int ret = PTR_ERR(fw->chan);
++
++		if (ret != -EPROBE_DEFER)
++			dev_err(dev, "failed to get mbox channel: %d\n", ret);
++		kfree(fw);
++		return ret;
++	}
++
++	init_completion(&fw->c);
++	kref_init(&fw->consumers);
++
++	ret = rp1_firmware_message(fw, GET_FIRMWARE_VERSION,
++				   NULL, 0, &version, sizeof(version));
++	if (ret == sizeof(version)) {
++		dev_info(dev, "RP1 Firmware version %08x%08x%08x%08x%08x\n",
++			 version[0], version[1], version[2], version[3], version[4]);
++		platform_set_drvdata(pdev, fw);
++	} else {
++		rp1_firmware_put(fw);
++		platform_set_drvdata(pdev, ERR_PTR(-ENOENT));
++	}
++
++	dev_dbg(dev, "probe successful\n");
++
++	return 0;
++}
++
++static void rp1_firmware_remove(struct platform_device *pdev)
++{
++	struct rp1_firmware *fw = platform_get_drvdata(pdev);
++
++	rp1_firmware_put(fw);
++}
++
++static struct platform_driver rp1_firmware_driver = {
++	.driver = {
++		.name = "rp1-firmware",
++		.of_match_table = rp1_firmware_of_match,
++	},
++	.probe		= rp1_firmware_probe,
++	.remove		= rp1_firmware_remove,
++};
++
++module_platform_driver(rp1_firmware_driver);
++
++MODULE_AUTHOR("Phil Elwell <phil@raspberrypi.com>");
++MODULE_DESCRIPTION("RP1 firmware driver");
++MODULE_LICENSE("GPL v2");
+\ No newline at end of file
+diff --git a/drivers/hwmon/pwm-fan.c b/drivers/hwmon/pwm-fan.c
+index 37269db2d..619af6a03 100644
+--- a/drivers/hwmon/pwm-fan.c
++++ b/drivers/hwmon/pwm-fan.c
+@@ -209,6 +209,9 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
+ 	bool update = false;
+ 	int ret = 0;
+ 
++	dev_dbg(ctx->dev, "input %lu -> duty %llu/%llu (enabled: %d)\n",
++         pwm, state->duty_cycle, state->period, state->enabled);
++
+ 	if (pwm > 0) {
+ 		if (ctx->enable_mode == pwm_off_reg_off)
+ 			/* pwm-fan hard disabled */
+@@ -418,6 +421,9 @@ pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
+ 	struct pwm_fan_ctx *ctx = cdev->devdata;
+ 	int ret;
+ 
++	dev_dbg(ctx->dev, "Requested cooling state %lu (current: %u)\n",
++         state, ctx->pwm_fan_state);
++
+ 	if (!ctx || (state > ctx->pwm_fan_max_state))
+ 		return -EINVAL;
+ 
+@@ -509,6 +515,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
+ 	int channel_count = 1;	/* We always have a PWM channel. */
+ 	int i;
+ 
++	dev_dbg(dev, "probe start\n");
++
+ 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+ 	if (!ctx)
+ 		return -ENOMEM;
+@@ -697,6 +705,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
+ 		ctx->cdev = cdev;
+ 	}
+ 
++	dev_dbg(dev, "probe successful\n");
++
+ 	return 0;
+ }
+ 
+diff --git a/drivers/mailbox/Kconfig b/drivers/mailbox/Kconfig
+index 29f16f220..61211365f 100644
+--- a/drivers/mailbox/Kconfig
++++ b/drivers/mailbox/Kconfig
+@@ -390,4 +390,13 @@ config RISCV_SBI_MPXY_MBOX
+ 	  or HS-mode hypervisor). Say Y here if you want to have this support.
+ 	  If unsure say N.
+ 
++config MBOX_RP1
++	tristate "RP1 Mailbox"
++	depends on MFD_RP1
++	help
++	  An implementation of a mailbox interface to the Raspberry Pi RP1 I/O
++	  interface. Although written as a mailbox driver, the hardware only
++	  provides an array of 32 doorbells.
++	  Say Y here if you want to use the RP1 Mailbox.
++
+ endif
+diff --git a/drivers/mailbox/Makefile b/drivers/mailbox/Makefile
+index 81820a4f5..120ead8f8 100644
+--- a/drivers/mailbox/Makefile
++++ b/drivers/mailbox/Makefile
+@@ -82,3 +82,5 @@ obj-$(CONFIG_CIX_MBOX)	+= cix-mailbox.o
+ obj-$(CONFIG_BCM74110_MAILBOX)	+= bcm74110-mailbox.o
+ 
+ obj-$(CONFIG_RISCV_SBI_MPXY_MBOX)	+= riscv-sbi-mpxy-mbox.o
++
++obj-$(CONFIG_MBOX_RP1) += rp1-mailbox.o
+diff --git a/drivers/mailbox/rp1-mailbox.c b/drivers/mailbox/rp1-mailbox.c
+new file mode 100644
+index 000000000..01435d699
+--- /dev/null
++++ b/drivers/mailbox/rp1-mailbox.c
+@@ -0,0 +1,206 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ *  Copyright (C) 2023 Raspberry Pi Ltd.
++ *
++ * Parts of this driver are based on:
++ *  - bcm2835-mailbox.c
++ *    Copyright (C) 2010,2015 Broadcom
++ *    Copyright (C) 2013-2014 Lubomir Rintel
++ *    Copyright (C) 2013 Craig McGeachie
++ */
++
++#include <linux/compat.h>
++#include <linux/device.h>
++#include <linux/dma-mapping.h>
++#include <linux/err.h>
++#include <linux/interrupt.h>
++#include <linux/irq.h>
++#include <linux/kernel.h>
++#include <linux/mailbox_controller.h>
++#include <linux/miscdevice.h>
++#include <linux/module.h>
++#include <linux/of_address.h>
++#include <linux/of_irq.h>
++#include <linux/platform_device.h>
++
++/*
++ * RP1's PROC_EVENTS register can generate interrupts on the M3 cores (when
++ * enabled). The 32-bit register is treated as 32 events, all of which share a
++ * common interrupt. HOST_EVENTS is the same in the reverse direction.
++ */
++#define SYSCFG_PROC_EVENTS		0x00000008
++#define SYSCFG_HOST_EVENTS		0x0000000c
++#define SYSCFG_HOST_EVENT_IRQ_EN	0x00000010
++#define SYSCFG_HOST_EVENT_IRQ		0x00000014
++
++#define HW_SET_BITS			0x00002000
++#define HW_CLR_BITS			0x00003000
++
++#define MAX_CHANS	4 /* 32 is the hardware limit */
++
++struct rp1_mbox {
++	void __iomem *regs;
++	unsigned int irq;
++	struct mbox_controller controller;
++};
++
++static struct rp1_mbox *rp1_chan_mbox(struct mbox_chan *chan)
++{
++	return container_of(chan->mbox, struct rp1_mbox, controller);
++}
++
++static unsigned int rp1_chan_event(struct mbox_chan *chan)
++{
++	return (unsigned int)(uintptr_t)chan->con_priv;
++}
++
++static irqreturn_t rp1_mbox_irq(int irq, void *dev_id)
++{
++	struct rp1_mbox *mbox = dev_id;
++	struct mbox_chan *chan;
++	unsigned int doorbell;
++	unsigned int evs;
++
++	evs = readl(mbox->regs + SYSCFG_HOST_EVENT_IRQ);
++	writel(evs, mbox->regs + SYSCFG_HOST_EVENTS + HW_CLR_BITS);
++
++	while (evs) {
++		doorbell = __ffs(evs);
++		chan = &mbox->controller.chans[doorbell];
++		mbox_chan_received_data(chan, NULL);
++		evs &= ~(1 << doorbell);
++	}
++	return IRQ_HANDLED;
++}
++
++static int rp1_send_data(struct mbox_chan *chan, void *data)
++{
++	struct rp1_mbox *mbox = rp1_chan_mbox(chan);
++	unsigned int event = rp1_chan_event(chan);
++
++	writel(event, mbox->regs + SYSCFG_PROC_EVENTS + HW_SET_BITS);
++
++	return 0;
++}
++
++static int rp1_startup(struct mbox_chan *chan)
++{
++	struct rp1_mbox *mbox = rp1_chan_mbox(chan);
++	unsigned int event = rp1_chan_event(chan);
++
++	writel(event, mbox->regs + SYSCFG_HOST_EVENT_IRQ_EN + HW_SET_BITS);
++
++	return 0;
++}
++
++static void rp1_shutdown(struct mbox_chan *chan)
++{
++	struct rp1_mbox *mbox = rp1_chan_mbox(chan);
++	unsigned int event = rp1_chan_event(chan);
++
++	writel(event, mbox->regs + SYSCFG_HOST_EVENT_IRQ_EN + HW_CLR_BITS);
++}
++
++static bool rp1_last_tx_done(struct mbox_chan *chan)
++{
++	struct rp1_mbox *mbox = rp1_chan_mbox(chan);
++	unsigned int event = rp1_chan_event(chan);
++	unsigned int evs;
++
++	evs = readl(mbox->regs + SYSCFG_HOST_EVENT_IRQ);
++
++	return !(evs & event);
++}
++
++static const struct mbox_chan_ops rp1_mbox_chan_ops = {
++	.send_data	= rp1_send_data,
++	.startup	= rp1_startup,
++	.shutdown	= rp1_shutdown,
++	.last_tx_done	= rp1_last_tx_done
++};
++
++static struct mbox_chan *rp1_mbox_xlate(struct mbox_controller *mbox,
++					const struct of_phandle_args *spec)
++{
++	struct mbox_chan *chan;
++	unsigned int doorbell;
++
++	if (spec->args_count != 1)
++		return ERR_PTR(-EINVAL);
++
++	doorbell = spec->args[0];
++	if (doorbell >= MAX_CHANS)
++		return ERR_PTR(-EINVAL);
++
++	chan = &mbox->chans[doorbell];
++
++	chan->con_priv = (void *)(uintptr_t)(1 << doorbell);
++
++	return chan;
++}
++
++static int rp1_mbox_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct mbox_chan *chans;
++	struct rp1_mbox *mbox;
++	int ret = 0;
++
++	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
++	if (mbox == NULL)
++		return -ENOMEM;
++
++	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
++			       rp1_mbox_irq, 0, dev_name(dev), mbox);
++	if (ret) {
++		dev_err(dev, "Failed to register a mailbox IRQ handler: %d\n",
++			ret);
++		return -ENODEV;
++	}
++
++	mbox->regs = devm_platform_ioremap_resource(pdev, 0);
++	if (IS_ERR(mbox->regs)) {
++		ret = PTR_ERR(mbox->regs);
++		return ret;
++	}
++
++	chans = devm_kcalloc(dev, MAX_CHANS, sizeof(*chans), GFP_KERNEL);
++	if (!chans)
++		return -ENOMEM;
++
++	mbox->controller.txdone_poll = true;
++	mbox->controller.txpoll_period = 5;
++	mbox->controller.ops = &rp1_mbox_chan_ops;
++	mbox->controller.of_xlate = &rp1_mbox_xlate;
++	mbox->controller.dev = dev;
++	mbox->controller.num_chans = MAX_CHANS;
++	mbox->controller.chans = chans;
++
++	ret = devm_mbox_controller_register(dev, &mbox->controller);
++	if (ret)
++		return ret;
++
++	platform_set_drvdata(pdev, mbox);
++
++	return 0;
++}
++
++static const struct of_device_id rp1_mbox_of_match[] = {
++	{ .compatible = "raspberrypi,rp1-mbox", },
++	{},
++};
++MODULE_DEVICE_TABLE(of, rp1_mbox_of_match);
++
++static struct platform_driver rp1_mbox_driver = {
++	.driver = {
++		.name = "rp1-mbox",
++		.of_match_table = rp1_mbox_of_match,
++	},
++	.probe = rp1_mbox_probe,
++};
++
++module_platform_driver(rp1_mbox_driver);
++
++MODULE_AUTHOR("Phil Elwell <phil@raspberrypi.com>");
++MODULE_DESCRIPTION("RP1 mailbox IPC driver");
++MODULE_LICENSE("GPL v2");
+\ No newline at end of file
+diff --git a/drivers/mfd/Kconfig b/drivers/mfd/Kconfig
+index 55a9fea95..b0cc959ee 100644
+--- a/drivers/mfd/Kconfig
++++ b/drivers/mfd/Kconfig
+@@ -2517,6 +2517,18 @@ config MFD_QNAP_MCU
+ 	  This driver implements the base serial protocol to talk to the
+ 	  device and provides functions for the other parts to hook into.
+ 
++config MFD_RP1
++	tristate "RP1 MFD driver"
++	depends on PCI
++	depends on PCI_MSI
++	select MFD_CORE
++	help
++	  Support for the RP1 peripheral chip.
++
++	  This driver provides support for the Raspberry Pi RP1 peripheral chip.
++	  It is responsible for enabling the Device Tree node once the PCIe endpoint
++	  has been configured, and handling interrupts.
++
+ config MFD_RSMU_I2C
+ 	tristate "Renesas Synchronization Management Unit with I2C"
+ 	depends on I2C && OF
+diff --git a/drivers/mfd/Makefile b/drivers/mfd/Makefile
+index 865e9f12f..57cde0542 100644
+--- a/drivers/mfd/Makefile
++++ b/drivers/mfd/Makefile
+@@ -303,3 +303,5 @@ obj-$(CONFIG_MFD_RSMU_SPI)	+= rsmu_spi.o rsmu_core.o
+ obj-$(CONFIG_MFD_UPBOARD_FPGA)	+= upboard-fpga.o
+ 
+ obj-$(CONFIG_MFD_LOONGSON_SE)	+= loongson-se.o
++
++obj-$(CONFIG_MFD_RP1)		+= rp1.o
+diff --git a/drivers/mfd/rp1.c b/drivers/mfd/rp1.c
+new file mode 100644
+index 000000000..b22c2642e
+--- /dev/null
++++ b/drivers/mfd/rp1.c
+@@ -0,0 +1,452 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (c) 2018-22 Raspberry Pi Ltd.
++ * All rights reserved.
++ */
++
++#include <linux/clk.h>
++#include <linux/clkdev.h>
++#include <linux/clk-provider.h>
++#include <linux/completion.h>
++#include <linux/etherdevice.h>
++#include <linux/err.h>
++#include <linux/interrupt.h>
++#include <linux/io.h>
++#include <linux/irq.h>
++#include <linux/irqchip/chained_irq.h>
++#include <linux/irqdomain.h>
++#include <linux/mfd/core.h>
++#include <linux/mmc/host.h>
++#include <linux/module.h>
++#include <linux/msi.h>
++#include <linux/of_platform.h>
++#include <linux/pci.h>
++#include <linux/platform_device.h>
++#include <linux/pm_runtime.h>
++#include <linux/rp1_platform.h>
++#include <linux/reset.h>
++#include <linux/slab.h>
++
++#include <dt-bindings/mfd/rp1.h>
++
++/* TO DO:
++ * 1. Occasional shutdown crash - RP1 being closed before its children?
++ * 2. DT mode interrupt handling.
++ */
++
++#define RP1_DRIVER_NAME "rp1"
++
++#define PCI_VENDOR_ID_RPI 0x1de4
++#define PCI_DEVICE_ID_RP1_C0 0x0001
++#define PCI_DEVICE_REV_RP1_C0 2
++
++#define RP1_ACTUAL_IRQS		RP1_INT_END
++#define RP1_IRQS		RP1_ACTUAL_IRQS
++
++#define RP1_SYSCLK_RATE		200000000
++#define RP1_SYSCLK_FPGA_RATE	60000000
++
++// Don't want to include the whole sysinfo reg header
++#define SYSINFO_CHIP_ID_OFFSET	0x00000000
++#define SYSINFO_PLATFORM_OFFSET	0x00000004
++
++#define REG_RW          0x000
++#define REG_SET         0x800
++#define REG_CLR         0xc00
++
++// MSIX CFG registers start at 0x8
++#define MSIX_CFG(x) (0x8 + (4 * (x)))
++
++#define MSIX_CFG_IACK_EN        BIT(3)
++#define MSIX_CFG_IACK           BIT(2)
++#define MSIX_CFG_TEST           BIT(1)
++#define MSIX_CFG_ENABLE         BIT(0)
++
++#define INTSTATL		0x108
++#define INTSTATH		0x10c
++
++struct rp1_dev {
++	struct pci_dev *pdev;
++	struct device *dev;
++	resource_size_t bar_start;
++	resource_size_t bar_end;
++	struct clk *sys_clk;
++	struct irq_domain *domain;
++	struct irq_data *pcie_irqds[64];
++	void __iomem *msix_cfg_regs;
++};
++
++static bool rp1_level_triggered_irq[RP1_ACTUAL_IRQS] = { 0 };
++
++static struct rp1_dev *g_rp1;
++static u32 g_chip_id, g_platform;
++
++static void dump_bar(struct pci_dev *pdev, unsigned int bar)
++{
++	dev_dbg(&pdev->dev,
++		 "bar%d len 0x%llx, start 0x%llx, end 0x%llx, flags, 0x%lx\n",
++		 bar,
++		 pci_resource_len(pdev, bar),
++		 pci_resource_start(pdev, bar),
++		 pci_resource_end(pdev, bar),
++		 pci_resource_flags(pdev, bar));
++}
++
++static void msix_cfg_set(struct rp1_dev *rp1, unsigned int hwirq, u32 value)
++{
++	writel(value, rp1->msix_cfg_regs + REG_SET + MSIX_CFG(hwirq));
++}
++
++static void msix_cfg_clr(struct rp1_dev *rp1, unsigned int hwirq, u32 value)
++{
++	writel(value, rp1->msix_cfg_regs + REG_CLR + MSIX_CFG(hwirq));
++}
++
++static void rp1_mask_irq(struct irq_data *irqd)
++{
++	struct rp1_dev *rp1 = irqd->domain->host_data;
++	struct irq_data *pcie_irqd = rp1->pcie_irqds[irqd->hwirq];
++
++	pci_msi_mask_irq(pcie_irqd);
++}
++
++static void rp1_unmask_irq(struct irq_data *irqd)
++{
++	struct rp1_dev *rp1 = irqd->domain->host_data;
++	struct irq_data *pcie_irqd = rp1->pcie_irqds[irqd->hwirq];
++
++	pci_msi_unmask_irq(pcie_irqd);
++}
++
++static int rp1_irq_set_type(struct irq_data *irqd, unsigned int type)
++{
++	struct rp1_dev *rp1 = irqd->domain->host_data;
++	unsigned int hwirq = (unsigned int)irqd->hwirq;
++	int ret = 0;
++
++	switch (type) {
++	case IRQ_TYPE_LEVEL_HIGH:
++		dev_dbg(rp1->dev, "MSIX IACK EN for irq %d\n", hwirq);
++		msix_cfg_set(rp1, hwirq, MSIX_CFG_IACK_EN);
++		rp1_level_triggered_irq[hwirq] = true;
++	break;
++	case IRQ_TYPE_EDGE_RISING:
++		msix_cfg_clr(rp1, hwirq, MSIX_CFG_IACK_EN);
++		rp1_level_triggered_irq[hwirq] = false;
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	return ret;
++}
++
++static int rp1_irq_set_affinity(struct irq_data *irqd, const struct cpumask *dest, bool force)
++{
++	struct rp1_dev *rp1 = irqd->domain->host_data;
++	struct irq_data *pcie_irqd = rp1->pcie_irqds[irqd->hwirq];
++
++	return msi_domain_set_affinity(pcie_irqd, dest, force);
++}
++
++static struct irq_chip rp1_irq_chip = {
++	.name            = "rp1_irq_chip",
++	.irq_mask        = rp1_mask_irq,
++	.irq_unmask      = rp1_unmask_irq,
++	.irq_set_type    = rp1_irq_set_type,
++	.irq_set_affinity = rp1_irq_set_affinity,
++};
++
++static void rp1_chained_handle_irq(struct irq_desc *desc)
++{
++	struct irq_chip *chip = irq_desc_get_chip(desc);
++	struct rp1_dev *rp1 = irq_desc_get_handler_data(desc);
++	unsigned int hwirq = irq_desc_get_irq_data(desc)->hwirq;
++
++	chained_irq_enter(chip, desc);
++	generic_handle_irq(irq_find_mapping(rp1->domain, hwirq));
++	if (rp1_level_triggered_irq[hwirq])
++		msix_cfg_set(rp1, hwirq, MSIX_CFG_IACK);
++	chained_irq_exit(chip, desc);
++}
++
++static int rp1_irq_xlate(struct irq_domain *d, struct device_node *node,
++			 const u32 *intspec, unsigned int intsize,
++			 unsigned long *out_hwirq, unsigned int *out_type)
++{
++	struct rp1_dev *rp1 = d->host_data;
++	struct irq_data *pcie_irqd;
++	unsigned long hwirq;
++	int pcie_irq;
++	int ret;
++
++	ret = irq_domain_xlate_twocell(d, node, intspec, intsize,
++				       &hwirq, out_type);
++	if (!ret) {
++		pcie_irq = pci_irq_vector(rp1->pdev, hwirq);
++		pcie_irqd = irq_get_irq_data(pcie_irq);
++		rp1->pcie_irqds[hwirq] = pcie_irqd;
++		*out_hwirq = hwirq;
++	}
++	return ret;
++}
++
++static int rp1_irq_activate(struct irq_domain *d, struct irq_data *irqd,
++			    bool reserve)
++{
++	struct rp1_dev *rp1 = d->host_data;
++	struct irq_data *pcie_irqd;
++
++	pcie_irqd = rp1->pcie_irqds[irqd->hwirq];
++	msix_cfg_set(rp1, (unsigned int)irqd->hwirq, MSIX_CFG_ENABLE);
++	return irq_domain_activate_irq(pcie_irqd, reserve);
++}
++
++static void rp1_irq_deactivate(struct irq_domain *d, struct irq_data *irqd)
++{
++	struct rp1_dev *rp1 = d->host_data;
++	struct irq_data *pcie_irqd;
++
++	pcie_irqd = rp1->pcie_irqds[irqd->hwirq];
++	msix_cfg_clr(rp1, (unsigned int)irqd->hwirq, MSIX_CFG_ENABLE);
++	return irq_domain_deactivate_irq(pcie_irqd);
++}
++
++static const struct irq_domain_ops rp1_domain_ops = {
++	.xlate      = rp1_irq_xlate,
++	.activate   = rp1_irq_activate,
++	.deactivate = rp1_irq_deactivate,
++};
++
++static inline dma_addr_t rp1_io_to_phys(struct rp1_dev *rp1, unsigned int offset)
++{
++	return rp1->bar_start + offset;
++}
++
++static u32 rp1_reg_read(struct rp1_dev *rp1, unsigned int base_addr, u32 offset)
++{
++	dma_addr_t phys = rp1_io_to_phys(rp1, base_addr);
++	void __iomem *regblock = ioremap(phys, 0x1000);
++	u32 value = readl(regblock + offset);
++
++	iounmap(regblock);
++	return value;
++}
++
++void rp1_get_platform(u32 *chip_id, u32 *platform)
++{
++	if (chip_id)
++		*chip_id = g_chip_id;
++	if (platform)
++		*platform = g_platform;
++}
++EXPORT_SYMBOL_GPL(rp1_get_platform);
++
++static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
++{
++
++	dev_dbg(&pdev->dev, "RP1 PCI Probe started (Vendor: %04x Device: %04x)\n", pdev->vendor, pdev->device);
++
++	struct reset_control *reset;
++	struct platform_device *pcie_pdev;
++	struct device_node *rp1_node;
++	struct rp1_dev *rp1;
++	int err  = 0;
++	int i;
++
++	pm_runtime_enable(&pdev->dev);
++	if (pm_runtime_get_sync(&pdev->dev) < 0) {
++			dev_err(&pdev->dev, "power domain failed to wake up!\n");
++			return -EPROBE_DEFER;
++	}
++
++	reset = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
++	if (IS_ERR(reset))
++		return PTR_ERR(reset);
++	reset_control_reset(reset);
++
++	dump_bar(pdev, 0);
++	dump_bar(pdev, 1);
++
++	if (pci_resource_len(pdev, 1) <= 0x10000) {
++		dev_err(&pdev->dev,
++			"not initialised - is the firmware running?\n");
++		return -EINVAL;
++	}
++
++	/* enable pci device */
++	err = pcim_enable_device(pdev);
++	if (err < 0) {
++		dev_err(&pdev->dev, "Enabling PCI device has failed: %d",
++			err);
++		return err;
++	}
++
++	pci_set_master(pdev);
++
++	err = pci_alloc_irq_vectors(pdev, RP1_IRQS, RP1_IRQS,
++				    PCI_IRQ_MSIX);
++	if (err != RP1_IRQS) {
++		dev_err(&pdev->dev, "pci_alloc_irq_vectors failed - %d\n", err);
++		return err;
++	}
++
++	rp1 = devm_kzalloc(&pdev->dev, sizeof(*rp1), GFP_KERNEL);
++	if (!rp1)
++		return -ENOMEM;
++
++	rp1->pdev = pdev;
++	rp1->dev = &pdev->dev;
++
++	pci_set_drvdata(pdev, rp1);
++
++	rp1->bar_start = pci_resource_start(pdev, 1);
++	rp1->bar_end = pci_resource_end(pdev, 1);
++
++	// Get chip id
++	g_chip_id = rp1_reg_read(rp1, RP1_SYSINFO_BASE, SYSINFO_CHIP_ID_OFFSET);
++	g_platform = rp1_reg_read(rp1, RP1_SYSINFO_BASE, SYSINFO_PLATFORM_OFFSET);
++	dev_dbg(&pdev->dev, "chip_id 0x%x%s\n", g_chip_id,
++		 (g_platform & RP1_PLATFORM_FPGA) ? " FPGA" : "");
++	if (g_chip_id != RP1_C0_CHIP_ID) {
++		dev_err(&pdev->dev, "wrong chip id (%x)\n", g_chip_id);
++		return -EINVAL;
++	}
++
++	// rp1_node = of_find_node_by_name(NULL, "rp1");
++	rp1_node = of_find_compatible_node(NULL, NULL, "raspberrypi,rp1-mfd");
++	if (!rp1_node) {
++		dev_err(&pdev->dev, "failed to find RP1 DT node\n");
++		return -EINVAL;
++	}
++
++	pcie_pdev = of_find_device_by_node(rp1_node->parent);
++	rp1->domain = irq_domain_add_linear(rp1_node, RP1_IRQS,
++					    &rp1_domain_ops, rp1);
++
++	g_rp1 = rp1;
++
++	/* TODO can this go in the rp1 device tree entry? */
++	rp1->msix_cfg_regs = ioremap(rp1_io_to_phys(rp1, RP1_PCIE_APBS_BASE), 0x1000);
++
++	for (i = 0; i < RP1_IRQS; i++) {
++		int irq = irq_create_mapping(rp1->domain, i);
++
++		if (irq < 0) {
++			dev_err(&pdev->dev, "failed to create irq mapping\n");
++			return irq;
++		}
++
++		irq_set_chip_data(irq, rp1);
++		irq_set_chip_and_handler(irq, &rp1_irq_chip, handle_level_irq);
++		irq_set_probe(irq);
++		irq_set_chained_handler_and_data(pci_irq_vector(pdev, i),
++						 rp1_chained_handle_irq, rp1);
++	}
++
++	irq_domain_update_bus_token(rp1->domain, DOMAIN_BUS_ANY);
++
++	struct platform_device *child_pdev;
++	struct device_node *child;
++	struct resource res;
++
++	memset(&res, 0, sizeof(res));
++	res.start = pci_resource_start(pdev, 1);
++	res.end = pci_resource_end(pdev, 1);
++	res.flags = IORESOURCE_MEM;
++
++	/* 1. Ensure the reference clock is PHYSICALLY ON */
++	struct clk *xosc = devm_clk_get(&pdev->dev, "rp1-xosc");
++	if (!IS_ERR(xosc)) {
++			clk_prepare_enable(xosc);
++			dev_dbg(&pdev->dev, "fixed 50MHz crystal enabled\n");
++	}
++
++	/* 2. Give the hardware 100ms to stabilize before touching PLLs */
++	msleep(100);
++
++	/* 2. FORCE the PCI device to Full Power (D0) */
++	pci_set_power_state(pdev, PCI_D0);
++	err = pci_enable_device(pdev);
++	if (err < 0) {
++		dev_err(&pdev->dev, "failed to physically enable PCI device: %d\n", err);
++		return err;
++	}
++
++	/* 3. Force the Runtime PM to stay ON */
++	pm_runtime_set_active(&pdev->dev);
++	pm_runtime_get_noresume(&pdev->dev);
++
++	// msleep(100);
++
++	for_each_child_of_node(rp1_node, child) {
++		if (!of_device_is_available(child))
++			continue;
++
++		/* Create the platform device for the child */
++		dev_dbg(&pdev->dev, "Attempting to create device for %pOF\n", child);
++		child_pdev = of_platform_device_create(child, NULL, &pdev->dev);
++		if (!child_pdev) {
++			dev_err(&pdev->dev, "failed to create device for %pOF\n", child);
++			continue;
++		}
++		dev_dbg(&pdev->dev, "device created for %pOF\n", child);
++
++		err = device_attach(&child_pdev->dev);
++		if (err == -EPROBE_DEFER) {
++				dev_dbg(&pdev->dev, "probe deferred for %pOF (waiting for dependencies)\n", child);
++				continue;
++		} else if (err < 0) {
++				dev_err(&pdev->dev, "probe error %d for %pOF\n", err, child);
++				return err;
++		} else if (err == 0) {
++				dev_err(&pdev->dev, "no driver found for %pOF\n", child);
++		}
++		dev_dbg(&pdev->dev, "probe successful for %pOF\n", child);
++	}
++
++	/* Discovery log loop */
++
++	dev_dbg(&pdev->dev, "scanning RP1 bus for devices...\n");
++
++	for_each_child_of_node(rp1_node, child) {
++			dev_dbg(&pdev->dev, "found node: %pOF (status: %s)\n",
++					child, of_device_is_available(child) ? "okay" : "disabled");
++	}
++
++	if (of_get_child_count(rp1_node) == 0) {
++			dev_dbg(&pdev->dev, "RP1 node has no children\n");
++	}
++
++	of_node_put(rp1_node);
++
++	return 0;
++}
++
++static void rp1_remove(struct pci_dev *pdev)
++{
++	struct rp1_dev *rp1 = pci_get_drvdata(pdev);
++
++	mfd_remove_devices(&pdev->dev);
++
++	clk_unregister(rp1->sys_clk);
++}
++
++static const struct pci_device_id dev_id_table[] = {
++	{ PCI_DEVICE(PCI_VENDOR_ID_RPI, PCI_DEVICE_ID_RP1_C0), },
++	{ 0, }
++};
++
++static struct pci_driver rp1_driver = {
++	.name		= RP1_DRIVER_NAME,
++	.id_table	= dev_id_table,
++	.probe		= rp1_probe,
++	.remove		= rp1_remove,
++};
++
++module_pci_driver(rp1_driver);
++
++MODULE_AUTHOR("Phil Elwell <phil@raspberrypi.com>");
++MODULE_DESCRIPTION("RP1 wrapper");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index b9c11f673..b9ca56930 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -660,5 +660,4 @@ source "drivers/misc/pvpanic/Kconfig"
+ source "drivers/misc/mchp_pci1xxxx/Kconfig"
+ source "drivers/misc/keba/Kconfig"
+ source "drivers/misc/amd-sbi/Kconfig"
+-source "drivers/misc/rp1/Kconfig"
+ endmenu
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index b32a2597d..94f44e6c2 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -74,4 +74,3 @@ lan966x-pci-objs		+= lan966x_pci.dtbo.o
+ obj-$(CONFIG_MCHP_LAN966X_PCI)	+= lan966x-pci.o
+ obj-y				+= keba/
+ obj-y				+= amd-sbi/
+-obj-$(CONFIG_MISC_RP1)		+= rp1/
+diff --git a/drivers/misc/rp1/Kconfig b/drivers/misc/rp1/Kconfig
+deleted file mode 100644
+index 5232e70d3..000000000
+--- a/drivers/misc/rp1/Kconfig
++++ /dev/null
+@@ -1,20 +0,0 @@
+-# SPDX-License-Identifier: GPL-2.0-only
+-#
+-# RaspberryPi RP1 misc device
+-#
+-
+-config MISC_RP1
+-	tristate "RaspberryPi RP1 misc device"
+-	depends on OF_IRQ && OF_OVERLAY && PCI_MSI && PCI_QUIRKS
+-	select PCI_DYNAMIC_OF_NODES
+-	help
+-	  Support the RP1 peripheral chip found on Raspberry Pi 5 board.
+-
+-	  This device supports several sub-devices including e.g. Ethernet
+-	  controller, USB controller, I2C, SPI and UART.
+-
+-	  The driver is responsible for enabling the DT node once the PCIe
+-	  endpoint has been configured, and handling interrupts.
+-
+-	  This driver uses an overlay to load other drivers to support for
+-	  RP1 internal sub-devices.
+diff --git a/drivers/misc/rp1/Makefile b/drivers/misc/rp1/Makefile
+deleted file mode 100644
+index 508b4cb05..000000000
+--- a/drivers/misc/rp1/Makefile
++++ /dev/null
+@@ -1,3 +0,0 @@
+-# SPDX-License-Identifier: GPL-2.0-only
+-obj-$(CONFIG_MISC_RP1)		+= rp1-pci.o
+-rp1-pci-objs			:= rp1_pci.o rp1-pci.dtbo.o
+diff --git a/drivers/misc/rp1/rp1-pci.dtso b/drivers/misc/rp1/rp1-pci.dtso
+deleted file mode 100644
+index eea826b36..000000000
+--- a/drivers/misc/rp1/rp1-pci.dtso
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+-
+-/*
+- * The dts overlay is included from the dts directory so
+- * it can be possible to check it with CHECK_DTBS while
+- * also compile it from the driver source directory.
+- */
+-
+-/dts-v1/;
+-/plugin/;
+-
+-/ {
+-	fragment@0 {
+-		target-path="";
+-		__overlay__ {
+-			compatible = "pci1de4,1";
+-			#address-cells = <3>;
+-			#size-cells = <2>;
+-			interrupt-controller;
+-			#interrupt-cells = <2>;
+-
+-			#include "arm64/broadcom/rp1-common.dtsi"
+-		};
+-	};
+-};
+diff --git a/drivers/misc/rp1/rp1_pci.c b/drivers/misc/rp1/rp1_pci.c
+deleted file mode 100644
+index a342bcc61..000000000
+--- a/drivers/misc/rp1/rp1_pci.c
++++ /dev/null
+@@ -1,336 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-/*
+- * Copyright (c) 2018-2025 Raspberry Pi Ltd.
+- *
+- * All rights reserved.
+- */
+-
+-#include <linux/err.h>
+-#include <linux/interrupt.h>
+-#include <linux/irq.h>
+-#include <linux/irqchip/chained_irq.h>
+-#include <linux/irqdomain.h>
+-#include <linux/module.h>
+-#include <linux/msi.h>
+-#include <linux/of_platform.h>
+-#include <linux/pci.h>
+-#include <linux/platform_device.h>
+-
+-#define RP1_HW_IRQ_MASK		GENMASK(5, 0)
+-
+-#define REG_SET			0x800
+-#define REG_CLR			0xc00
+-
+-/* MSI-X CFG registers start at 0x8 */
+-#define MSIX_CFG(x) (0x8 + (4 * (x)))
+-
+-#define MSIX_CFG_IACK_EN        BIT(3)
+-#define MSIX_CFG_IACK           BIT(2)
+-#define MSIX_CFG_ENABLE         BIT(0)
+-
+-/* Address map */
+-#define RP1_PCIE_APBS_BASE	0x108000
+-
+-/* Interrupts */
+-#define RP1_INT_END		61
+-
+-/* Embedded dtbo symbols created by cmd_wrap_S_dtb in scripts/Makefile.lib */
+-extern char __dtbo_rp1_pci_begin[];
+-extern char __dtbo_rp1_pci_end[];
+-
+-struct rp1_dev {
+-	struct pci_dev *pdev;
+-	struct irq_domain *domain;
+-	struct irq_data *pcie_irqds[64];
+-	void __iomem *bar1;
+-	int ovcs_id;	/* overlay changeset id */
+-	bool level_triggered_irq[RP1_INT_END];
+-};
+-
+-static void msix_cfg_set(struct rp1_dev *rp1, unsigned int hwirq, u32 value)
+-{
+-	iowrite32(value, rp1->bar1 + RP1_PCIE_APBS_BASE + REG_SET + MSIX_CFG(hwirq));
+-}
+-
+-static void msix_cfg_clr(struct rp1_dev *rp1, unsigned int hwirq, u32 value)
+-{
+-	iowrite32(value, rp1->bar1 + RP1_PCIE_APBS_BASE + REG_CLR + MSIX_CFG(hwirq));
+-}
+-
+-static void rp1_mask_irq(struct irq_data *irqd)
+-{
+-	struct rp1_dev *rp1 = irqd->domain->host_data;
+-	struct irq_data *pcie_irqd = rp1->pcie_irqds[irqd->hwirq];
+-
+-	pci_msi_mask_irq(pcie_irqd);
+-}
+-
+-static void rp1_unmask_irq(struct irq_data *irqd)
+-{
+-	struct rp1_dev *rp1 = irqd->domain->host_data;
+-	struct irq_data *pcie_irqd = rp1->pcie_irqds[irqd->hwirq];
+-
+-	pci_msi_unmask_irq(pcie_irqd);
+-}
+-
+-static int rp1_irq_set_type(struct irq_data *irqd, unsigned int type)
+-{
+-	struct rp1_dev *rp1 = irqd->domain->host_data;
+-	unsigned int hwirq = (unsigned int)irqd->hwirq;
+-
+-	switch (type) {
+-	case IRQ_TYPE_LEVEL_HIGH:
+-		dev_dbg(&rp1->pdev->dev, "MSIX IACK EN for IRQ %u\n", hwirq);
+-		msix_cfg_set(rp1, hwirq, MSIX_CFG_IACK_EN);
+-		rp1->level_triggered_irq[hwirq] = true;
+-	break;
+-	case IRQ_TYPE_EDGE_RISING:
+-		msix_cfg_clr(rp1, hwirq, MSIX_CFG_IACK_EN);
+-		rp1->level_triggered_irq[hwirq] = false;
+-		break;
+-	default:
+-		return -EINVAL;
+-	}
+-
+-	return 0;
+-}
+-
+-static struct irq_chip rp1_irq_chip = {
+-	.name		= "rp1_irq_chip",
+-	.irq_mask	= rp1_mask_irq,
+-	.irq_unmask	= rp1_unmask_irq,
+-	.irq_set_type	= rp1_irq_set_type,
+-};
+-
+-static void rp1_chained_handle_irq(struct irq_desc *desc)
+-{
+-	unsigned int hwirq = desc->irq_data.hwirq & RP1_HW_IRQ_MASK;
+-	struct rp1_dev *rp1 = irq_desc_get_handler_data(desc);
+-	struct irq_chip *chip = irq_desc_get_chip(desc);
+-	unsigned int virq;
+-
+-	chained_irq_enter(chip, desc);
+-
+-	virq = irq_find_mapping(rp1->domain, hwirq);
+-	generic_handle_irq(virq);
+-	if (rp1->level_triggered_irq[hwirq])
+-		msix_cfg_set(rp1, hwirq, MSIX_CFG_IACK);
+-
+-	chained_irq_exit(chip, desc);
+-}
+-
+-static int rp1_irq_xlate(struct irq_domain *d, struct device_node *node,
+-			 const u32 *intspec, unsigned int intsize,
+-			 unsigned long *out_hwirq, unsigned int *out_type)
+-{
+-	struct rp1_dev *rp1 = d->host_data;
+-	struct irq_data *pcie_irqd;
+-	unsigned long hwirq;
+-	int pcie_irq;
+-	int ret;
+-
+-	ret = irq_domain_xlate_twocell(d, node, intspec, intsize,
+-				       &hwirq, out_type);
+-	if (ret)
+-		return ret;
+-
+-	pcie_irq = pci_irq_vector(rp1->pdev, hwirq);
+-	pcie_irqd = irq_get_irq_data(pcie_irq);
+-	rp1->pcie_irqds[hwirq] = pcie_irqd;
+-	*out_hwirq = hwirq;
+-
+-	return 0;
+-}
+-
+-static int rp1_irq_activate(struct irq_domain *d, struct irq_data *irqd,
+-			    bool reserve)
+-{
+-	struct rp1_dev *rp1 = d->host_data;
+-
+-	msix_cfg_set(rp1, (unsigned int)irqd->hwirq, MSIX_CFG_ENABLE);
+-
+-	return 0;
+-}
+-
+-static void rp1_irq_deactivate(struct irq_domain *d, struct irq_data *irqd)
+-{
+-	struct rp1_dev *rp1 = d->host_data;
+-
+-	msix_cfg_clr(rp1, (unsigned int)irqd->hwirq, MSIX_CFG_ENABLE);
+-}
+-
+-static const struct irq_domain_ops rp1_domain_ops = {
+-	.xlate      = rp1_irq_xlate,
+-	.activate   = rp1_irq_activate,
+-	.deactivate = rp1_irq_deactivate,
+-};
+-
+-static void rp1_unregister_interrupts(struct pci_dev *pdev)
+-{
+-	struct rp1_dev *rp1 = pci_get_drvdata(pdev);
+-	int irq, i;
+-
+-	if (rp1->domain) {
+-		for (i = 0; i < RP1_INT_END; i++) {
+-			irq = irq_find_mapping(rp1->domain, i);
+-			irq_dispose_mapping(irq);
+-		}
+-
+-		irq_domain_remove(rp1->domain);
+-	}
+-
+-	pci_free_irq_vectors(pdev);
+-}
+-
+-static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+-{
+-	u32 dtbo_size = __dtbo_rp1_pci_end - __dtbo_rp1_pci_begin;
+-	void *dtbo_start = __dtbo_rp1_pci_begin;
+-	struct device *dev = &pdev->dev;
+-	struct device_node *rp1_node;
+-	bool skip_ovl = true;
+-	struct rp1_dev *rp1;
+-	int err = 0;
+-	int i;
+-
+-	/*
+-	 * Either use rp1_nexus node if already present in DT, or
+-	 * set a flag to load it from overlay at runtime
+-	 */
+-	rp1_node = of_find_node_by_name(NULL, "rp1_nexus");
+-	if (!rp1_node) {
+-		rp1_node = dev_of_node(dev);
+-		skip_ovl = false;
+-	}
+-
+-	if (!rp1_node) {
+-		dev_err(dev, "Missing of_node for device\n");
+-		err = -EINVAL;
+-		goto err_put_node;
+-	}
+-
+-	rp1 = devm_kzalloc(&pdev->dev, sizeof(*rp1), GFP_KERNEL);
+-	if (!rp1) {
+-		err = -ENOMEM;
+-		goto err_put_node;
+-	}
+-
+-	rp1->pdev = pdev;
+-
+-	if (pci_resource_len(pdev, 1) <= 0x10000) {
+-		dev_err(&pdev->dev,
+-			"Not initialized - is the firmware running?\n");
+-		err = -EINVAL;
+-		goto err_put_node;
+-	}
+-
+-	err = pcim_enable_device(pdev);
+-	if (err < 0) {
+-		err = dev_err_probe(&pdev->dev, err,
+-				    "Enabling PCI device has failed");
+-		goto err_put_node;
+-	}
+-
+-	rp1->bar1 = pcim_iomap(pdev, 1, 0);
+-	if (!rp1->bar1) {
+-		dev_err(&pdev->dev, "Cannot map PCI BAR\n");
+-		err = -EIO;
+-		goto err_put_node;
+-	}
+-
+-	pci_set_master(pdev);
+-
+-	err = pci_alloc_irq_vectors(pdev, RP1_INT_END, RP1_INT_END,
+-				    PCI_IRQ_MSIX);
+-	if (err < 0) {
+-		err = dev_err_probe(&pdev->dev, err,
+-				    "Failed to allocate MSI-X vectors\n");
+-		goto err_put_node;
+-	} else if (err != RP1_INT_END) {
+-		dev_err(&pdev->dev, "Cannot allocate enough interrupts\n");
+-		err = -EINVAL;
+-		goto err_put_node;
+-	}
+-
+-	pci_set_drvdata(pdev, rp1);
+-	rp1->domain = irq_domain_add_linear(rp1_node, RP1_INT_END,
+-					    &rp1_domain_ops, rp1);
+-	if (!rp1->domain) {
+-		dev_err(&pdev->dev, "Error creating IRQ domain\n");
+-		err = -ENOMEM;
+-		goto err_unregister_interrupts;
+-	}
+-
+-	for (i = 0; i < RP1_INT_END; i++) {
+-		unsigned int irq = irq_create_mapping(rp1->domain, i);
+-
+-		if (!irq) {
+-			dev_err(&pdev->dev, "Failed to create IRQ mapping\n");
+-			err = -EINVAL;
+-			goto err_unregister_interrupts;
+-		}
+-
+-		irq_set_chip_and_handler(irq, &rp1_irq_chip, handle_level_irq);
+-		irq_set_probe(irq);
+-		irq_set_chained_handler_and_data(pci_irq_vector(pdev, i),
+-						 rp1_chained_handle_irq, rp1);
+-	}
+-
+-	if (!skip_ovl) {
+-		err = of_overlay_fdt_apply(dtbo_start, dtbo_size, &rp1->ovcs_id,
+-					   rp1_node);
+-		if (err)
+-			goto err_unregister_interrupts;
+-	}
+-
+-	err = of_platform_default_populate(rp1_node, NULL, dev);
+-	if (err) {
+-		dev_err_probe(&pdev->dev, err, "Error populating devicetree\n");
+-		goto err_unload_overlay;
+-	}
+-
+-	if (skip_ovl)
+-		of_node_put(rp1_node);
+-
+-	return 0;
+-
+-err_unload_overlay:
+-	of_overlay_remove(&rp1->ovcs_id);
+-err_unregister_interrupts:
+-	rp1_unregister_interrupts(pdev);
+-err_put_node:
+-	if (skip_ovl)
+-		of_node_put(rp1_node);
+-
+-	return err;
+-}
+-
+-static void rp1_remove(struct pci_dev *pdev)
+-{
+-	struct rp1_dev *rp1 = pci_get_drvdata(pdev);
+-	struct device *dev = &pdev->dev;
+-
+-	of_platform_depopulate(dev);
+-	of_overlay_remove(&rp1->ovcs_id);
+-	rp1_unregister_interrupts(pdev);
+-}
+-
+-static const struct pci_device_id dev_id_table[] = {
+-	{ PCI_DEVICE(PCI_VENDOR_ID_RPI, PCI_DEVICE_ID_RPI_RP1_C0), },
+-	{ }
+-};
+-MODULE_DEVICE_TABLE(pci, dev_id_table);
+-
+-static struct pci_driver rp1_driver = {
+-	.name		= KBUILD_MODNAME,
+-	.id_table	= dev_id_table,
+-	.probe		= rp1_probe,
+-	.remove		= rp1_remove,
+-};
+-
+-module_pci_driver(rp1_driver);
+-
+-MODULE_AUTHOR("Phil Elwell <phil@raspberrypi.com>");
+-MODULE_AUTHOR("Andrea della Porta <andrea.porta@suse.com>");
+-MODULE_DESCRIPTION("RaspberryPi RP1 misc device");
+-MODULE_LICENSE("GPL");
+diff --git a/drivers/pinctrl/Kconfig b/drivers/pinctrl/Kconfig
+index 4f8507ebb..41d0abc42 100644
+--- a/drivers/pinctrl/Kconfig
++++ b/drivers/pinctrl/Kconfig
+@@ -672,8 +672,8 @@ config PINCTRL_MLXBF3
+ 
+ config PINCTRL_RP1
+ 	tristate "Pinctrl driver for RP1"
+-	depends on MISC_RP1
+-	default MISC_RP1
++	depends on MFD_RP1
++	default MFD_RP1
+ 	select PINMUX
+ 	select PINCONF
+ 	select GENERIC_PINCONF
+diff --git a/drivers/pinctrl/core.c b/drivers/pinctrl/core.c
+index c5dbf4e9d..e0c71374f 100644
+--- a/drivers/pinctrl/core.c
++++ b/drivers/pinctrl/core.c
+@@ -1281,6 +1281,8 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
+ 	struct pinctrl_state *old_state = READ_ONCE(p->state);
+ 	int ret;
+ 
++	dev_info(p->dev, "PINCTRL: Attempting to apply state for %s\n", p->dev->of_node->name);
++
+ 	if (old_state) {
+ 		/*
+ 		 * For each pinmux setting in the old state, forget SW's record
+diff --git a/drivers/pinctrl/pinctrl-rp1.c b/drivers/pinctrl/pinctrl-rp1.c
+index ffc2f0b46..915802586 100644
+--- a/drivers/pinctrl/pinctrl-rp1.c
++++ b/drivers/pinctrl/pinctrl-rp1.c
+@@ -1750,6 +1750,8 @@ static int rp1_pinctrl_probe(struct platform_device *pdev)
+ 	struct gpio_irq_chip *girq;
+ 	int err, i;
+ 
++	dev_info(dev, "Loading pinctl driver");
++
+ 	pc->dev = dev;
+ 	pc->gpio_chip = rp1_gpio_chip;
+ 	pc->gpio_chip.parent = dev;
+diff --git a/drivers/pinctrl/pinmux.c b/drivers/pinctrl/pinmux.c
+index 3a8dd184b..563c07106 100644
+--- a/drivers/pinctrl/pinmux.c
++++ b/drivers/pinctrl/pinmux.c
+@@ -441,6 +441,14 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
+ 	int i;
+ 	struct pin_desc *desc;
+ 
++	/* Add this inside pinmux_enable_setting near the start */
++	dev_dbg(pctldev->dev, "driver '%s' requesting pin %d for function '%s' in group '%s'\n",
++					setting->dev_name, setting->data.mux.group,
++					ops->get_function_name(pctldev, setting->data.mux.group),
++					pctlops->get_group_name(pctldev, setting->data.mux.group)
++	);
++
++
+ 	if (pctlops->get_group_pins)
+ 		ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+ 					      &pins, &num_pins);
+@@ -492,6 +500,10 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
+ 	ret = ops->set_mux(pctldev, setting->data.mux.func,
+ 			   setting->data.mux.group);
+ 
++	if (ret < 0)
++		dev_err(pctldev->dev, "pin %d denied to %s (Ret: %d)\n",
++							setting->data.mux.group, setting->dev_name, ret);
++
+ 	if (ret)
+ 		goto err_set_mux;
+ 
+diff --git a/drivers/pwm/Kconfig b/drivers/pwm/Kconfig
+index c2fd3f4b6..3a81b1ecc 100644
+--- a/drivers/pwm/Kconfig
++++ b/drivers/pwm/Kconfig
+@@ -607,6 +607,15 @@ config PWM_RENESAS_TPU
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called pwm-renesas-tpu.
+ 
++config PWM_RP1
++	tristate "RP1 PWM support"
++	depends on ARCH_BCM2835 || COMPILE_TEST
++	help
++	  PWM framework driver for Raspberry Pi RP1 controller
++
++	  To compile this driver as a module, choose M here: the module
++	  will be called pwm-rp1.
++
+ config PWM_ROCKCHIP
+ 	tristate "Rockchip PWM support"
+ 	depends on ARCH_ROCKCHIP || COMPILE_TEST
+diff --git a/drivers/pwm/Makefile b/drivers/pwm/Makefile
+index dfa8b4966..b6b1d2954 100644
+--- a/drivers/pwm/Makefile
++++ b/drivers/pwm/Makefile
+@@ -54,6 +54,7 @@ obj-$(CONFIG_PWM_RENESAS_RCAR)	+= pwm-rcar.o
+ obj-$(CONFIG_PWM_RENESAS_RZG2L_GPT)	+= pwm-rzg2l-gpt.o
+ obj-$(CONFIG_PWM_RENESAS_RZ_MTU3)	+= pwm-rz-mtu3.o
+ obj-$(CONFIG_PWM_RENESAS_TPU)	+= pwm-renesas-tpu.o
++obj-$(CONFIG_PWM_RP1)	+= pwm-rp1.o
+ obj-$(CONFIG_PWM_ROCKCHIP)	+= pwm-rockchip.o
+ obj-$(CONFIG_PWM_SAMSUNG)	+= pwm-samsung.o
+ obj-$(CONFIG_PWM_SIFIVE)	+= pwm-sifive.o
+diff --git a/drivers/pwm/pwm-rp1.c b/drivers/pwm/pwm-rp1.c
+new file mode 100644
+index 000000000..0c461ec48
+--- /dev/null
++++ b/drivers/pwm/pwm-rp1.c
+@@ -0,0 +1,195 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * pwm-rp1.c
++ *
++ * Raspberry Pi RP1 PWM.
++ *
++ * Copyright © 2023 Raspberry Pi Ltd.
++ *
++ * Author: Naushir Patuck (naush@raspberrypi.com)
++ *
++ * Based on the pwm-bcm2835 driver by:
++ * Bart Tanghe <bart.tanghe@thomasmore.be>
++ */
++
++/* test comment */
++
++#include <linux/bitops.h>
++#include <linux/clk.h>
++#include <linux/err.h>
++#include <linux/io.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/pwm.h>
++
++#define PWM_GLOBAL_CTRL		0x000
++#define PWM_CHANNEL_CTRL(x)	(0x014 + ((x) * 16))
++#define PWM_RANGE(x)		(0x018 + ((x) * 16))
++#define PWM_DUTY(x)		(0x020 + ((x) * 16))
++
++/* 8:FIFO_POP_MASK + 0:Trailing edge M/S modulation */
++#define PWM_CHANNEL_DEFAULT	(BIT(8) + BIT(0))
++#define PWM_CHANNEL_ENABLE(x)	BIT(x)
++#define PWM_POLARITY		BIT(3)
++#define SET_UPDATE		BIT(31)
++#define PWM_MODE_MASK		GENMASK(1, 0)
++
++struct rp1_pwm {
++	void __iomem *base;
++	struct clk *clk;
++};
++
++static inline struct rp1_pwm *to_rp1_pwm(struct pwm_chip *chip)
++{
++	return pwmchip_get_drvdata(chip);
++}
++
++static void rp1_pwm_apply_config(struct pwm_chip *chip, struct pwm_device *pwm)
++{
++	struct rp1_pwm *pc = to_rp1_pwm(chip);
++	u32 value;
++
++	value = readl(pc->base + PWM_GLOBAL_CTRL);
++	value |= SET_UPDATE;
++	writel(value, pc->base + PWM_GLOBAL_CTRL);
++}
++
++static int rp1_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
++{
++	struct rp1_pwm *pc = to_rp1_pwm(chip);
++
++	writel(PWM_CHANNEL_DEFAULT, pc->base + PWM_CHANNEL_CTRL(pwm->hwpwm));
++	return 0;
++}
++
++static void rp1_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
++{
++	struct rp1_pwm *pc = to_rp1_pwm(chip);
++	u32 value;
++
++	value = readl(pc->base + PWM_CHANNEL_CTRL(pwm->hwpwm));
++	value &= ~PWM_MODE_MASK;
++	writel(value, pc->base + PWM_CHANNEL_CTRL(pwm->hwpwm));
++	rp1_pwm_apply_config(chip, pwm);
++}
++
++static int rp1_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
++			 const struct pwm_state *state)
++{
++	struct rp1_pwm *pc = to_rp1_pwm(chip);
++	unsigned long clk_rate = clk_get_rate(pc->clk);
++	unsigned long clk_period;
++	u32 value;
++
++	dev_dbg(&chip->dev, "applying PWM channel %u, duty %llu, enabled: %d\n",
++         pwm->hwpwm, state->duty_cycle, state->enabled);
++
++	if (!clk_rate) {
++		dev_err(&chip->dev, "failed to get clock rate\n");
++		return -EINVAL;
++	}
++
++	/* set period */
++	clk_period = DIV_ROUND_CLOSEST(NSEC_PER_SEC, clk_rate);
++
++	writel(DIV_ROUND_CLOSEST(state->duty_cycle, clk_period),
++	       pc->base + PWM_DUTY(pwm->hwpwm));
++
++	/* set duty cycle */
++	writel(DIV_ROUND_CLOSEST(state->period, clk_period),
++	       pc->base + PWM_RANGE(pwm->hwpwm));
++
++	/* set polarity */
++	value = readl(pc->base + PWM_CHANNEL_CTRL(pwm->hwpwm));
++	if (state->polarity == PWM_POLARITY_NORMAL)
++		value &= ~PWM_POLARITY;
++	else
++		value |= PWM_POLARITY;
++	writel(value, pc->base + PWM_CHANNEL_CTRL(pwm->hwpwm));
++
++	/* enable/disable */
++	value = readl(pc->base + PWM_GLOBAL_CTRL);
++	if (state->enabled)
++		value |= PWM_CHANNEL_ENABLE(pwm->hwpwm);
++	else
++		value &= ~PWM_CHANNEL_ENABLE(pwm->hwpwm);
++	writel(value, pc->base + PWM_GLOBAL_CTRL);
++
++	rp1_pwm_apply_config(chip, pwm);
++
++	return 0;
++}
++
++static const struct pwm_ops rp1_pwm_ops = {
++	.request = rp1_pwm_request,
++	.free = rp1_pwm_free,
++	.apply = rp1_pwm_apply,
++};
++
++static int rp1_pwm_probe(struct platform_device *pdev)
++{
++	struct pwm_chip *chip;
++	struct rp1_pwm *pc;
++	int ret;
++
++	dev_dbg(&pdev->dev, "probe start\n");
++
++	chip = devm_pwmchip_alloc(&pdev->dev, 4, sizeof(*pc));
++
++	if (IS_ERR(chip))
++		return PTR_ERR(chip);
++
++	pc = to_rp1_pwm(chip);
++
++	pc->base = devm_platform_ioremap_resource(pdev, 0);
++	if (IS_ERR(pc->base))
++		return PTR_ERR(pc->base);
++
++	pc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
++	if (IS_ERR(pc->clk))
++		return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk),
++				     "clock not found\n");
++
++	chip->ops = &rp1_pwm_ops;
++	chip->of_xlate = of_pwm_xlate_with_flags;
++
++	ret = devm_pwmchip_add(&pdev->dev, chip);
++	if (ret < 0)
++		goto add_fail;
++
++	dev_dbg(&pdev->dev, "probe successful\n");
++
++	return 0;
++
++add_fail:
++	clk_disable_unprepare(pc->clk);
++	return ret;
++}
++
++static void rp1_pwm_remove(struct platform_device *pdev)
++{
++	struct rp1_pwm *pc = platform_get_drvdata(pdev);
++
++	clk_disable_unprepare(pc->clk);
++}
++
++static const struct of_device_id rp1_pwm_of_match[] = {
++	{ .compatible = "raspberrypi,rp1-pwm" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, rp1_pwm_of_match);
++
++static struct platform_driver rp1_pwm_driver = {
++	.driver = {
++		.name = "rpi-pwm",
++		.of_match_table = rp1_pwm_of_match,
++	},
++	.probe = rp1_pwm_probe,
++	.remove = rp1_pwm_remove,
++};
++module_platform_driver(rp1_pwm_driver);
++
++MODULE_AUTHOR("Naushir Patuck <naush@raspberrypi.com");
++MODULE_DESCRIPTION("RP1 PWM driver");
++MODULE_LICENSE("GPL");
+diff --git a/include/dt-bindings/mfd/rp1.h b/include/dt-bindings/mfd/rp1.h
+new file mode 100644
+index 000000000..80bbfd61b
+--- /dev/null
++++ b/include/dt-bindings/mfd/rp1.h
+@@ -0,0 +1,235 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * This header provides constants for the PY MFD.
++ */
++
++#ifndef _RP1_H
++#define _RP1_H
++
++/* Address map */
++#define RP1_SYSINFO_BASE 0x000000
++#define RP1_TBMAN_BASE 0x004000
++#define RP1_SYSCFG_BASE 0x008000
++#define RP1_OTP_BASE 0x00c000
++#define RP1_POWER_BASE 0x010000
++#define RP1_RESETS_BASE 0x014000
++#define RP1_CLOCKS_BANK_DEFAULT_BASE 0x018000
++#define RP1_CLOCKS_BANK_VIDEO_BASE 0x01c000
++#define RP1_PLL_SYS_BASE 0x020000
++#define RP1_PLL_AUDIO_BASE 0x024000
++#define RP1_PLL_VIDEO_BASE 0x028000
++#define RP1_UART0_BASE 0x030000
++#define RP1_UART1_BASE 0x034000
++#define RP1_UART2_BASE 0x038000
++#define RP1_UART3_BASE 0x03c000
++#define RP1_UART4_BASE 0x040000
++#define RP1_UART5_BASE 0x044000
++#define RP1_SPI8_BASE 0x04c000
++#define RP1_SPI0_BASE 0x050000
++#define RP1_SPI1_BASE 0x054000
++#define RP1_SPI2_BASE 0x058000
++#define RP1_SPI3_BASE 0x05c000
++#define RP1_SPI4_BASE 0x060000
++#define RP1_SPI5_BASE 0x064000
++#define RP1_SPI6_BASE 0x068000
++#define RP1_SPI7_BASE 0x06c000
++#define RP1_I2C0_BASE 0x070000
++#define RP1_I2C1_BASE 0x074000
++#define RP1_I2C2_BASE 0x078000
++#define RP1_I2C3_BASE 0x07c000
++#define RP1_I2C4_BASE 0x080000
++#define RP1_I2C5_BASE 0x084000
++#define RP1_I2C6_BASE 0x088000
++#define RP1_AUDIO_IN_BASE 0x090000
++#define RP1_AUDIO_OUT_BASE 0x094000
++#define RP1_PWM0_BASE 0x098000
++#define RP1_PWM1_BASE 0x09c000
++#define RP1_I2S0_BASE 0x0a0000
++#define RP1_I2S1_BASE 0x0a4000
++#define RP1_I2S2_BASE 0x0a8000
++#define RP1_TIMER_BASE 0x0ac000
++#define RP1_SDIO0_APBS_BASE 0x0b0000
++#define RP1_SDIO1_APBS_BASE 0x0b4000
++#define RP1_BUSFABRIC_MONITOR_BASE 0x0c0000
++#define RP1_BUSFABRIC_AXISHIM_BASE 0x0c4000
++#define RP1_ADC_BASE 0x0c8000
++#define RP1_IO_BANK0_BASE 0x0d0000
++#define RP1_IO_BANK1_BASE 0x0d4000
++#define RP1_IO_BANK2_BASE 0x0d8000
++#define RP1_SYS_RIO0_BASE 0x0e0000
++#define RP1_SYS_RIO1_BASE 0x0e4000
++#define RP1_SYS_RIO2_BASE 0x0e8000
++#define RP1_PADS_BANK0_BASE 0x0f0000
++#define RP1_PADS_BANK1_BASE 0x0f4000
++#define RP1_PADS_BANK2_BASE 0x0f8000
++#define RP1_PADS_ETH_BASE 0x0fc000
++#define RP1_ETH_IP_BASE 0x100000
++#define RP1_ETH_CFG_BASE 0x104000
++#define RP1_PCIE_APBS_BASE 0x108000
++#define RP1_MIPI0_CSIDMA_BASE 0x110000
++#define RP1_MIPI0_CSIHOST_BASE 0x114000
++#define RP1_MIPI0_DSIDMA_BASE 0x118000
++#define RP1_MIPI0_DSIHOST_BASE 0x11c000
++#define RP1_MIPI0_MIPICFG_BASE 0x120000
++#define RP1_MIPI0_ISP_BASE 0x124000
++#define RP1_MIPI1_CSIDMA_BASE 0x128000
++#define RP1_MIPI1_CSIHOST_BASE 0x12c000
++#define RP1_MIPI1_DSIDMA_BASE 0x130000
++#define RP1_MIPI1_DSIHOST_BASE 0x134000
++#define RP1_MIPI1_MIPICFG_BASE 0x138000
++#define RP1_MIPI1_ISP_BASE 0x13c000
++#define RP1_VIDEO_OUT_CFG_BASE 0x140000
++#define RP1_VIDEO_OUT_VEC_BASE 0x144000
++#define RP1_VIDEO_OUT_DPI_BASE 0x148000
++#define RP1_XOSC_BASE 0x150000
++#define RP1_WATCHDOG_BASE 0x154000
++#define RP1_DMA_TICK_BASE 0x158000
++#define RP1_SDIO_CLOCKS_BASE 0x15c000
++#define RP1_USBHOST0_APBS_BASE 0x160000
++#define RP1_USBHOST1_APBS_BASE 0x164000
++#define RP1_ROSC0_BASE 0x168000
++#define RP1_ROSC1_BASE 0x16c000
++#define RP1_VBUSCTRL_BASE 0x170000
++#define RP1_TICKS_BASE 0x174000
++#define RP1_PIO_APBS_BASE 0x178000
++#define RP1_SDIO0_AHBLS_BASE 0x180000
++#define RP1_SDIO1_AHBLS_BASE 0x184000
++#define RP1_DMA_BASE 0x188000
++#define RP1_RAM_BASE 0x1c0000
++#define RP1_RAM_SIZE 0x020000
++#define RP1_USBHOST0_AXIS_BASE 0x200000
++#define RP1_USBHOST1_AXIS_BASE 0x300000
++#define RP1_EXAC_BASE 0x400000
++
++/* Interrupts */
++
++#define RP1_INT_IO_BANK0 0
++#define RP1_INT_IO_BANK1 1
++#define RP1_INT_IO_BANK2 2
++#define RP1_INT_AUDIO_IN 3
++#define RP1_INT_AUDIO_OUT 4
++#define RP1_INT_PWM0 5
++#define RP1_INT_ETH 6
++#define RP1_INT_I2C0 7
++#define RP1_INT_I2C1 8
++#define RP1_INT_I2C2 9
++#define RP1_INT_I2C3 10
++#define RP1_INT_I2C4 11
++#define RP1_INT_I2C5 12
++#define RP1_INT_I2C6 13
++#define RP1_INT_I2S0 14
++#define RP1_INT_I2S1 15
++#define RP1_INT_I2S2 16
++#define RP1_INT_SDIO0 17
++#define RP1_INT_SDIO1 18
++#define RP1_INT_SPI0 19
++#define RP1_INT_SPI1 20
++#define RP1_INT_SPI2 21
++#define RP1_INT_SPI3 22
++#define RP1_INT_SPI4 23
++#define RP1_INT_SPI5 24
++#define RP1_INT_UART0 25
++#define RP1_INT_TIMER_0 26
++#define RP1_INT_TIMER_1 27
++#define RP1_INT_TIMER_2 28
++#define RP1_INT_TIMER_3 29
++#define RP1_INT_USBHOST0 30
++#define RP1_INT_USBHOST0_0 31
++#define RP1_INT_USBHOST0_1 32
++#define RP1_INT_USBHOST0_2 33
++#define RP1_INT_USBHOST0_3 34
++#define RP1_INT_USBHOST1 35
++#define RP1_INT_USBHOST1_0 36
++#define RP1_INT_USBHOST1_1 37
++#define RP1_INT_USBHOST1_2 38
++#define RP1_INT_USBHOST1_3 39
++#define RP1_INT_DMA 40
++#define RP1_INT_PWM1 41
++#define RP1_INT_UART1 42
++#define RP1_INT_UART2 43
++#define RP1_INT_UART3 44
++#define RP1_INT_UART4 45
++#define RP1_INT_UART5 46
++#define RP1_INT_MIPI0 47
++#define RP1_INT_MIPI1 48
++#define RP1_INT_VIDEO_OUT 49
++#define RP1_INT_PIO_0 50
++#define RP1_INT_PIO_1 51
++#define RP1_INT_ADC_FIFO 52
++#define RP1_INT_PCIE_OUT 53
++#define RP1_INT_SPI6 54
++#define RP1_INT_SPI7 55
++#define RP1_INT_SPI8 56
++#define RP1_INT_SYSCFG 58
++#define RP1_INT_CLOCKS_DEFAULT 59
++#define RP1_INT_VBUSCTRL 60
++#define RP1_INT_PROC_MISC 57
++#define RP1_INT_END 61
++
++/* DMA peripherals (for pacing) */
++#define RP1_DMA_I2C0_RX 0x0
++#define RP1_DMA_I2C0_TX 0x1
++#define RP1_DMA_I2C1_RX 0x2
++#define RP1_DMA_I2C1_TX 0x3
++#define RP1_DMA_I2C2_RX 0x4
++#define RP1_DMA_I2C2_TX 0x5
++#define RP1_DMA_I2C3_RX 0x6
++#define RP1_DMA_I2C3_TX 0x7
++#define RP1_DMA_I2C4_RX 0x8
++#define RP1_DMA_I2C4_TX 0x9
++#define RP1_DMA_I2C5_RX 0xa
++#define RP1_DMA_I2C5_TX 0xb
++#define RP1_DMA_SPI0_RX 0xc
++#define RP1_DMA_SPI0_TX 0xd
++#define RP1_DMA_SPI1_RX 0xe
++#define RP1_DMA_SPI1_TX 0xf
++#define RP1_DMA_SPI2_RX 0x10
++#define RP1_DMA_SPI2_TX 0x11
++#define RP1_DMA_SPI3_RX 0x12
++#define RP1_DMA_SPI3_TX 0x13
++#define RP1_DMA_SPI4_RX 0x14
++#define RP1_DMA_SPI4_TX 0x15
++#define RP1_DMA_SPI5_RX 0x16
++#define RP1_DMA_SPI5_TX 0x17
++#define RP1_DMA_PWM0 0x18
++#define RP1_DMA_UART0_RX 0x19
++#define RP1_DMA_UART0_TX 0x1a
++#define RP1_DMA_AUDIO_IN_CH0 0x1b
++#define RP1_DMA_AUDIO_IN_CH1 0x1c
++#define RP1_DMA_AUDIO_OUT 0x1d
++#define RP1_DMA_PWM1 0x1e
++#define RP1_DMA_I2S0_RX 0x1f
++#define RP1_DMA_I2S0_TX 0x20
++#define RP1_DMA_I2S1_RX 0x21
++#define RP1_DMA_I2S1_TX 0x22
++#define RP1_DMA_I2S2_RX 0x23
++#define RP1_DMA_I2S2_TX 0x24
++#define RP1_DMA_UART1_RX 0x25
++#define RP1_DMA_UART1_TX 0x26
++#define RP1_DMA_UART2_RX 0x27
++#define RP1_DMA_UART2_TX 0x28
++#define RP1_DMA_UART3_RX 0x29
++#define RP1_DMA_UART3_TX 0x2a
++#define RP1_DMA_UART4_RX 0x2b
++#define RP1_DMA_UART4_TX 0x2c
++#define RP1_DMA_UART5_RX 0x2d
++#define RP1_DMA_UART5_TX 0x2e
++#define RP1_DMA_ADC 0x2f
++#define RP1_DMA_DMA_TICK_TICK0 0x30
++#define RP1_DMA_DMA_TICK_TICK1 0x31
++#define RP1_DMA_SPI6_RX 0x32
++#define RP1_DMA_SPI6_TX 0x33
++#define RP1_DMA_SPI7_RX 0x34
++#define RP1_DMA_SPI7_TX 0x35
++#define RP1_DMA_SPI8_RX 0x36
++#define RP1_DMA_SPI8_TX 0x37
++#define RP1_DMA_PIO_CH0_TX 0x38
++#define RP1_DMA_PIO_CH0_RX 0x39
++#define RP1_DMA_PIO_CH1_TX 0x3a
++#define RP1_DMA_PIO_CH1_RX 0x3b
++#define RP1_DMA_PIO_CH2_TX 0x3c
++#define RP1_DMA_PIO_CH2_RX 0x3d
++#define RP1_DMA_PIO_CH3_TX 0x3e
++#define RP1_DMA_PIO_CH3_RX 0x3f
++
++#endif
+diff --git a/include/linux/irqdomain.h b/include/linux/irqdomain.h
+index 4a86e6b91..8fb2b76e5 100644
+--- a/include/linux/irqdomain.h
++++ b/include/linux/irqdomain.h
+@@ -494,6 +494,12 @@ static inline unsigned int irq_find_mapping(struct irq_domain *domain,
+ 
+ extern const struct irq_domain_ops irq_domain_simple_ops;
+ 
++static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
++					     irq_hw_number_t hwirq)
++{
++	return irq_find_mapping(domain, hwirq);
++}
++
+ /* stock xlate functions */
+ int irq_domain_xlate_onecell(struct irq_domain *d, struct device_node *ctrlr,
+ 			     const u32 *intspec, unsigned int intsize,
+diff --git a/include/linux/rp1-firmware.h b/include/linux/rp1-firmware.h
+new file mode 100644
+index 000000000..e97c48479
+--- /dev/null
++++ b/include/linux/rp1-firmware.h
+@@ -0,0 +1,53 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ *  Copyright (C) 2023 2023-2024 Raspberry Pi Ltd.
++ */
++
++#ifndef __SOC_RP1_FIRMWARE_H__
++#define __SOC_RP1_FIRMWARE_H__
++
++#include <linux/types.h>
++#include <linux/of_device.h>
++
++#define RP1_FOURCC(s) ((uint32_t)((s[0] << 24) | (s[1] << 16) | (s[2] << 8) | (s[3] << 0)))
++
++struct rp1_firmware;
++
++#if IS_ENABLED(CONFIG_FIRMWARE_RP1)
++int rp1_firmware_message(struct rp1_firmware *fw, uint16_t op,
++			 const void *data, unsigned int data_len,
++			 void *resp, unsigned int resp_space);
++void rp1_firmware_put(struct rp1_firmware *fw);
++struct rp1_firmware *rp1_firmware_get(struct device_node *fwnode);
++struct rp1_firmware *devm_rp1_firmware_get(struct device *dev, struct device_node *fwnode);
++int rp1_firmware_get_feature(struct rp1_firmware *fw, uint32_t fourcc,
++			     uint32_t *op_base, uint32_t *op_count);
++#else
++static inline int rp1_firmware_message(struct rp1_firmware *fw, uint16_t op,
++				       const void *data, unsigned int data_len,
++				       void *resp, unsigned int resp_space)
++{
++	return -EOPNOTSUPP;
++}
++
++static inline void rp1_firmware_put(struct rp1_firmware *fw) { }
++
++static inline struct rp1_firmware *rp1_firmware_get(struct device_node *fwnode)
++{
++	return NULL;
++}
++
++static inline struct rp1_firmware *devm_rp1_firmware_get(struct device *dev,
++							 struct device_node *fwnode)
++{
++	return NULL;
++}
++
++static inline int rp1_firmware_get_feature(struct rp1_firmware *fw, uint32_t fourcc,
++					   uint32_t *op_base, uint32_t *op_count)
++{
++	return -EOPNOTSUPP;
++}
++#endif
++
++#endif /* __SOC_RP1_FIRMWARE_H__ */
+\ No newline at end of file
+diff --git a/include/linux/rp1_platform.h b/include/linux/rp1_platform.h
+new file mode 100644
+index 000000000..f805dbe1e
+--- /dev/null
++++ b/include/linux/rp1_platform.h
+@@ -0,0 +1,20 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (c) 2021-2022 Raspberry Pi Ltd.
++ * All rights reserved.
++ */
++
++#ifndef _RP1_PLATFORM_H
++#define _RP1_PLATFORM_H
++
++#include <vdso/bits.h>
++
++#define RP1_B0_CHIP_ID 0x10001927
++#define RP1_C0_CHIP_ID 0x20001927
++
++#define RP1_PLATFORM_ASIC BIT(1)
++#define RP1_PLATFORM_FPGA BIT(0)
++
++void rp1_get_platform(u32 *chip_id, u32 *platform);
++
++#endif
