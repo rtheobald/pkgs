@@ -28,7 +28,7 @@ SOURCE_DATE_EPOCH := $(shell git log $(INITIAL_COMMIT_SHA) --pretty=%ct)
 
 BLDR_RELEASE := v0.5.6
 # BLDR_IMAGE := ghcr.io/siderolabs/bldr:$(BLDR_RELEASE)
-BLDR_IMAGE := ghcr.io/rtheobald/bldr:v0.5.6-3-g0a3859e
+BLDR_IMAGE := ghcr.io/rtheobald/bldr:v0.5.6-3-g0a3859e-dirty
 BLDR := docker run --rm --user $(shell id -u):$(shell id -g) --volume $(PWD):/src --entrypoint=/bldr $(BLDR_IMAGE) --root=/src
 
 # docker build settings

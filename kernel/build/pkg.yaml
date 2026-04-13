@@ -4,7 +4,11 @@ shell: /bin/bash
 dependencies:
   - stage: kernel-prepare
 steps:
-  - env:
+  - ramPaths:
+      /build: 24
+    cachePaths:
+      - /artifacts
+    env:
       CARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else if eq .ARCH "x86_64" }}amd64{{ else }}unsupported{{ end }}
       ARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else if eq .ARCH "x86_64" }}x86{{ else }}unsupported{{ end }}
       LLVM: 1
@@ -22,27 +26,48 @@ steps:
     build:
       {{ if .BUILD_ARG_KERNEL_TARGET }}
       - |
-        cd /src
+        cp -a /src/. /build/
+        cp -a /artifacts/. /build/
+        cd /build
 
-        make {{ .BUILD_ARG_KERNEL_TARGET }}
+        make LLVM=1 -j $(nproc) {{ .BUILD_ARG_KERNEL_TARGET }}
+
+        cp -a /build/. /artifacts/
+        cd /src
+        find . -type f -exec rm -f "/artifacts/{}" \;
+        find /artifacts -type d -empty -delete
+        cd -
+        cp -a /build/. /src/
       {{ else }}
       - |
         cd /src
         python3 /toolchain/kernel-hardening-checker/bin/kernel-hardening-checker -c .config -m json | python3 /pkg/scripts/filter-hardened-check.py ${CARCH}
       - |
-        cd /src
+        df -h
+        mount
+        ls -l /artifacts/
+        cp -a /src/. /build/
+        cp -a /artifacts/. /build/
+        cd /build
 
-        make -j $(nproc)
-        make -j $(nproc) modules
+        make LLVM=1 -j $(nproc)
+        make LLVM=1 -j $(nproc) modules
 
         if [[ "${ARCH}" == "arm64" ]]; then
           echo "Compiling device-tree blobs"
-          make -j $(nproc) DTC_FLAGS=-@ dtbs
+          make LLVM=1 -j $(nproc) DTC_FLAGS=-@ dtbs
         fi
+
+        cp -a /build/. /artifacts/
+        cd /src
+        find . -type f -exec rm -f "/artifacts/{}" \;
+        find /artifacts -type d -empty -delete
+        cd -
+        cp -a /build/. /src/
       {{ end }}
 finalize:
   {{ if .BUILD_ARG_KERNEL_TARGET }}
-  - from: /src/.config
+  - from: /build/.config
     to: config-{{ if eq .ARCH "aarch64"}}arm64{{ else if eq .ARCH "x86_64" }}amd64{{ else }}unsupported{{ end }}
   {{ else }}
   - from: /src
