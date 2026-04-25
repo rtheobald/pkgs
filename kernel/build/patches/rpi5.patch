@@ -1,13 +1,3 @@
-diff --git a/.gitignore b/.gitignore
-index 86a1ba0d9..480b7e59b 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -183,3 +183,5 @@ sphinx_*/
- 
- # Rust analyzer configuration
- /rust-project.json
-+
-+/_out
 diff --git a/arch/arm64/boot/dts/broadcom/bcm2712-d-rpi-5-b.dts b/arch/arm64/boot/dts/broadcom/bcm2712-d-rpi-5-b.dts
 index 7de24d60b..c2a844cb6 100644
 --- a/arch/arm64/boot/dts/broadcom/bcm2712-d-rpi-5-b.dts
@@ -26,25 +16,27 @@ index 7de24d60b..c2a844cb6 100644
 +};
 \ No newline at end of file
 diff --git a/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts b/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
-index 3e0319fdb..18f4a0768 100644
+index 3e0319fdb..17508c57b 100644
 --- a/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
 +++ b/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
-@@ -16,26 +16,166 @@
- 
+@@ -16,26 +16,168 @@
+
  /dts-v1/;
- 
+
 +#include <dt-bindings/pwm/pwm.h>
  #include "bcm2712-rpi-5-b-ovl-rp1.dts"
- 
-+rp1_target: &pcie2 {
+
++&pcie2 {
 +	brcm,vdm-qos-map = /bits/ 8 <8 8 8 9 10 10 11 11>;
++	max-link-speed = <3>;
 +	aspm-no-l0s;
-+	status = "okay";
 +	#include "rp1-nexus.dtsi"
 +};
 +
 +&pcie1 {
 +	brcm,fifo-qos-map = /bits/ 8 <3 3 3 3>;
++	max-link-speed = <3>;
++	brcm,clkreq-mode = "safe";
 +};
 +
  / {
@@ -94,7 +86,7 @@ index 3e0319fdb..18f4a0768 100644
  		ethernet0 = &rp1_eth;
  	};
  };
- 
+
 -&pcie2 {
 -	#include "rp1-nexus.dtsi"
 +&thermal_trips {
@@ -181,7 +173,7 @@ index 3e0319fdb..18f4a0768 100644
 +	pinctrl-names = "default";
 +	status = "okay";
  };
- 
+
  &rp1_eth {
 -	assigned-clocks = <&rp1_clocks RP1_CLK_ETH_TSU>,
 -			  <&rp1_clocks RP1_CLK_ETH>;
@@ -199,12 +191,12 @@ index 3e0319fdb..18f4a0768 100644
 +	cdns,ar2r-max-pipe = [08];
 +	cdns,aw2w-max-pipe = [08];
 +	cdns,use-aw2b-fill;
- 
+
  	mdio {
  		reg = <0x1>;
-@@ -45,12 +185,46 @@ mdio {
+@@ -45,12 +187,46 @@ mdio {
  		#size-cells = <0>;
- 
+
  		phy1: ethernet-phy@1 {
 +			brcm,powerdown-enable;
 +			// eee-broken-100tx;
@@ -213,7 +205,7 @@ index 3e0319fdb..18f4a0768 100644
  		};
  	};
  };
- 
+
  &rp1_gpio {
 +
 +	rp1_sdio0_22_27: rp1_sdio0_22_27 {
@@ -250,13 +242,13 @@ index 3e0319fdb..18f4a0768 100644
  		function = "vbus1";
  		groups = "vbus1";
 diff --git a/arch/arm64/boot/dts/broadcom/bcm2712.dtsi b/arch/arm64/boot/dts/broadcom/bcm2712.dtsi
-index 205b87f55..c9fab9a16 100644
+index 205b87f55..b3c06baa6 100644
 --- a/arch/arm64/boot/dts/broadcom/bcm2712.dtsi
 +++ b/arch/arm64/boot/dts/broadcom/bcm2712.dtsi
 @@ -291,6 +291,18 @@ interrupt-controller@7d517000 {
  			#interrupt-cells = <1>;
  		};
- 
+
 +		avs_monitor: avs-monitor@7d542000 {
 +			compatible = "brcm,bcm2711-avs-monitor",
 +						"syscon", "simple-mfd";
@@ -275,7 +267,7 @@ index 205b87f55..c9fab9a16 100644
 @@ -481,17 +493,19 @@ axi: axi {
  		#address-cells = <2>;
  		#size-cells = <2>;
- 
+
 -		ranges = <0x00 0x00000000  0x00 0x00000000  0x10 0x00000000>,
 -			 <0x10 0x00000000  0x10 0x00000000  0x01 0x00000000>,
 -			 <0x14 0x00000000  0x14 0x00000000  0x04 0x00000000>,
@@ -287,7 +279,7 @@ index 205b87f55..c9fab9a16 100644
 +			<0x14 0x0   0x14 0x0   0x04 0x0>,
 +			<0x18 0x0   0x18 0x0   0x04 0x0>,
 +			<0x1c 0x0   0x1c 0x0   0x04 0x0>;
- 
+
 -		dma-ranges = <0x00 0x00000000  0x00 0x00000000  0x10 0x00000000>,
 -			     <0x10 0x00000000  0x10 0x00000000  0x01 0x00000000>,
 -			     <0x14 0x00000000  0x14 0x00000000  0x04 0x00000000>,
@@ -299,33 +291,35 @@ index 205b87f55..c9fab9a16 100644
 +			<0x14 0x0   0x14 0x0   0x04 0x0>,
 +			<0x18 0x0   0x18 0x0   0x04 0x0>,
 +			<0x1c 0x0   0x1c 0x0   0x04 0x0>;
- 
+
  		vc4: gpu {
  			compatible = "brcm,bcm2712-vc6";
 @@ -560,15 +574,17 @@ pcie1: pcie@1000110000 {
- 
+
  			ranges =
  				/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
 -				<0x02000000 0x00 0x00000000 0x1b 0x00000000 0x00 0xfffffffc>,
-+				<0x02000000 0x00 0x0   0x1b 0x0   0x00 0xfffffffc>,
++				<0x02000000 0x00 0x80000000  0x1b 0x80000000  0x00 0x7ffffffc>,
 +
  				/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
 -				<0x43000000 0x04 0x00000000 0x18 0x00000000 0x03 0x00000000>;
-+				<0x43000000 0x04 0x0   0x18 0x0   0x03 0x0>;
- 
++				<0x43000000 0x04 0x00000000  0x18 0x00000000  0x03 0x80000000>;
+
  			dma-ranges =
- 				/* 64GiB, 64-bit, non-prefetchable at PCIe 10_0000_0000 */
+-				/* 64GiB, 64-bit, non-prefetchable at PCIe 10_0000_0000 */
 -				<0x03000000 0x10 0x00000000 0x00 0x00000000 0x10 0x00000000>,
-+				<0x03000000 0x10 0x0   0x00 0x0   0x10 0x0>,
-+
- 				/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP1 */
+-				/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP1 */
 -				<0x03000000 0xff 0xfffff000 0x10 0x00131000 0x00 0x00001000>;
-+				<0x03000000 0xff 0xfffff000   0x10 0x00131000   0x00 0x00001000>;
- 
++					/* 64GiB, 64-bit, non-prefetchable at PCIe 10_0000_0000 */
++					<0x03000000 0x10 0x0   0x00 0x0   0x10 0x0>,
++
++					/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP1 */
++					<0x03000000 0xff 0xfffff000   0x10 0x00131000   0x00 0x00001000>;
+
  			status = "disabled";
  		};
 @@ -599,17 +615,20 @@ pcie2: pcie@1000120000 {
- 
+
  			ranges =
  				/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
 -				<0x02000000 0x00 0x00000000 0x1f 0x00000000 0x00 0xfffffffc>,
@@ -334,25 +328,24 @@ index 205b87f55..c9fab9a16 100644
  				/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
 -				<0x43000000 0x04 0x00000000 0x1c 0x00000000 0x03 0x00000000>;
 +				<0x43000000 0x04 0x0   0x1c 0x0   0x03 0x0>;
- 
+
  			dma-ranges =
--				/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
+ 				/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
 -				<0x02000000 0x00 0x00000000 0x1f 0x00000000 0x00 0x00400000>,
++				<0x02000000 0x00 0x0   0x1f 0x0   0x00 0x400000>,
++
  				/* 64GiB, 64-bit, prefetchable at PCIe 10_0000_0000 */
 -				<0x43000000 0x10 0x00000000 0x00 0x00000000 0x10 0x00000000>,
 +				<0x43000000 0x10 0x0   0x00 0x0   0x10 0x0>,
 +
-+				/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
-+				<0x02000000 0x00 0x0   0x1f 0x0   0x00 0x410000>,
-+
  				/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP0 */
 -				<0x03000000 0xff 0xfffff000 0x10 0x00130000 0x00 0x00001000>;
 +				<0x03000000 0xff 0xfffff000   0x10 0x00130000   0x00 0x1000>;
- 
+
  			status = "disabled";
  		};
 diff --git a/arch/arm64/boot/dts/broadcom/rp1-common.dtsi b/arch/arm64/boot/dts/broadcom/rp1-common.dtsi
-index 5a815c379..48cc16cd6 100644
+index 5a815c379..84c8725bc 100644
 --- a/arch/arm64/boot/dts/broadcom/rp1-common.dtsi
 +++ b/arch/arm64/boot/dts/broadcom/rp1-common.dtsi
 @@ -3,51 +3,141 @@
@@ -360,7 +353,7 @@ index 5a815c379..48cc16cd6 100644
  #include <dt-bindings/interrupt-controller/irq.h>
  #include <dt-bindings/clock/raspberrypi,rp1-clocks.h>
 +#include <dt-bindings/mfd/rp1.h>
- 
+
 -pci_ep_bus: pci-ep-bus@1 {
 -	compatible = "simple-bus";
 -	ranges = <0x00 0x40000000  0x01 0x00 0x00000000  0x00 0x00400000>;
@@ -370,7 +363,7 @@ index 5a815c379..48cc16cd6 100644
 +	status = "disabled";
  	#address-cells = <2>;
  	#size-cells = <2>;
- 
+
 -	rp1_clocks: clocks@40018000 {
 +	interrupt-controller;
 +	#interrupt-cells = <2>;
@@ -381,8 +374,8 @@ index 5a815c379..48cc16cd6 100644
 +
 +	dma-ranges =
 +			<0x10 0x0          0x43000000 0x10 0x0   0x10 0x0>,
-+			<0xc0 0x40000000   0x02000000 0x00 0x0   0x00 0x410000>;
-+//	  <0x00 0x0          0x02000000 0x10 0x0   0x10 0x00
++			<0xc0 0x40000000   0x02000000 0x00 0x0   0x00 0x410000>,
++  	  <0x00 0x0          0x02000000 0x10 0x0   0x10 0x00>;
 +
 +	sram: sram@400000 {
 +		compatible = "mmio-sram";
@@ -482,7 +475,7 @@ index 5a815c379..48cc16cd6 100644
 +		assigned-clock-rates = <50000000>;
 +		status = "disabled";
  	};
- 
+
 -	rp1_gpio: pinctrl@400d0000 {
 +	rp1_gpio: pinctrl@d0000 {
  		compatible = "raspberrypi,rp1-gpio";
@@ -505,7 +498,7 @@ index 5a815c379..48cc16cd6 100644
 +			<1 IRQ_TYPE_LEVEL_HIGH>,
 +			<2 IRQ_TYPE_LEVEL_HIGH>;
  	};
- 
+
 -	rp1_eth: ethernet@40100000 {
 -		compatible = "raspberrypi,rp1-gem";
 -		reg = <0x00 0x40100000  0x0 0x4000>;
@@ -528,7 +521,7 @@ index 5a815c379..48cc16cd6 100644
 @@ -56,9 +146,9 @@ rp1_eth: ethernet@40100000 {
  		#size-cells = <0>;
  	};
- 
+
 -	rp1_usb0: usb@40200000 {
 +	rp1_usb0: usb@200000 {
  		compatible = "snps,dwc3";
@@ -540,7 +533,7 @@ index 5a815c379..48cc16cd6 100644
 @@ -70,9 +160,9 @@ rp1_usb0: usb@40200000 {
  		status = "disabled";
  	};
- 
+
 -	rp1_usb1: usb@40300000 {
 +	rp1_usb1: usb@300000 {
  		compatible = "snps,dwc3";
@@ -550,43 +543,39 @@ index 5a815c379..48cc16cd6 100644
  		dr_mode = "host";
  		usb3-lpm-capable;
 diff --git a/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi b/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi
-index 0ef30d7f1..b3436feb9 100644
+index 0ef30d7f1..8262220c1 100644
 --- a/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi
 +++ b/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi
-@@ -4,9 +4,24 @@ rp1_nexus {
+@@ -1,14 +1,17 @@
+ // SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+-rp1_nexus {
++rp1_nexus: rp1_nexus {
  	compatible = "pci1de4,1";
  	#address-cells = <3>;
  	#size-cells = <2>;
 -	ranges = <0x01 0x00 0x00000000
 -		  0x02000000 0x00 0x00000000
 -		  0x0 0x400000>;
+-	interrupt-controller;
+-	#interrupt-cells = <2>;
 +
 +	ranges =
-+		/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
-+		<0x02000000 0x00 0x0   0x02000000 0x00 0x0   0x00 0xfffffffc>,
-+
-+		/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
-+		<0x43000000 0x04 0x0   0x43000000 0x04 0x0   0x03 0x0>;
++			<0x2000000 0x0 0x0   0x2000000 0x0 0x0   0x0 0x410000>;
 +
 +	dma-ranges =
-+		/* 64GiB, 64-bit, prefetchable at PCIe 10_0000_0000 */
 +		<0x43000000 0x10 0x0   0x43000000 0x10 0x0   0x10 0x0>,
-+
-+		/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
 +		<0x02000000 0x00 0x0   0x02000000 0x00 0x0   0x00 0x410000>,
-+
-+		/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP0 */
-+		<0x03000000 0xff 0xfffff000   0x03000000 0xff 0xfffff000   0x00 0x1000>;
-+
- 	interrupt-controller;
- 	#interrupt-cells = <2>;
- 
++  	<0x02000000 0x10 0x0   0x02000000 0x10 0x0   0x10 0x00>;
+
+ 	#include "rp1-common.dtsi"
+ };
 diff --git a/drivers/clk/Kconfig b/drivers/clk/Kconfig
 index 3a1611008..850f7e211 100644
 --- a/drivers/clk/Kconfig
 +++ b/drivers/clk/Kconfig
 @@ -89,8 +89,8 @@ config COMMON_CLK_RK808
- 
+
  config COMMON_CLK_RP1
  	tristate "Raspberry Pi RP1-based clock support"
 -	depends on MISC_RP1 || COMPILE_TEST
@@ -615,15 +604,15 @@ index fd144755b..1eef22e7c 100644
 +++ b/drivers/clk/clk-rp1.c
 @@ -263,7 +263,7 @@
  #define CLK_DIV_FRAC_BITS		16
- 
+
  #define LOCK_TIMEOUT_US			100000
 -#define LOCK_POLL_DELAY_US		5
 +#define LOCK_POLL_DELAY_US	5
- 
+
  #define MAX_CLK_PARENTS			16
- 
+
 @@ -2393,6 +2393,19 @@ static const struct regmap_config rp1_clk_regmap_cfg = {
- 
+
  static int rp1_clk_probe(struct platform_device *pdev)
  {
 +
@@ -649,7 +638,7 @@ index bbd2155d8..37359a5de 100644
 @@ -119,6 +119,15 @@ config RASPBERRYPI_FIRMWARE
  	  This option enables support for communicating with the firmware on the
  	  Raspberry Pi.
- 
+
 +config FIRMWARE_RP1
 +	tristate "RP1 Firmware Driver"
 +	depends on MBOX_RP1
@@ -1000,7 +989,7 @@ index 37269db2d..619af6a03 100644
 @@ -209,6 +209,9 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
  	bool update = false;
  	int ret = 0;
- 
+
 +	dev_dbg(ctx->dev, "input %lu -> duty %llu/%llu (enabled: %d)\n",
 +         pwm, state->duty_cycle, state->period, state->enabled);
 +
@@ -1010,17 +999,17 @@ index 37269db2d..619af6a03 100644
 @@ -418,6 +421,9 @@ pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
  	struct pwm_fan_ctx *ctx = cdev->devdata;
  	int ret;
- 
+
 +	dev_dbg(ctx->dev, "Requested cooling state %lu (current: %u)\n",
 +         state, ctx->pwm_fan_state);
 +
  	if (!ctx || (state > ctx->pwm_fan_max_state))
  		return -EINVAL;
- 
+
 @@ -509,6 +515,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
  	int channel_count = 1;	/* We always have a PWM channel. */
  	int i;
- 
+
 +	dev_dbg(dev, "probe start\n");
 +
  	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -1029,12 +1018,12 @@ index 37269db2d..619af6a03 100644
 @@ -697,6 +705,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
  		ctx->cdev = cdev;
  	}
- 
+
 +	dev_dbg(dev, "probe successful\n");
 +
  	return 0;
  }
- 
+
 diff --git a/drivers/mailbox/Kconfig b/drivers/mailbox/Kconfig
 index 29f16f220..61211365f 100644
 --- a/drivers/mailbox/Kconfig
@@ -1042,7 +1031,7 @@ index 29f16f220..61211365f 100644
 @@ -390,4 +390,13 @@ config RISCV_SBI_MPXY_MBOX
  	  or HS-mode hypervisor). Say Y here if you want to have this support.
  	  If unsure say N.
- 
+
 +config MBOX_RP1
 +	tristate "RP1 Mailbox"
 +	depends on MFD_RP1
@@ -1059,7 +1048,7 @@ index 81820a4f5..120ead8f8 100644
 +++ b/drivers/mailbox/Makefile
 @@ -82,3 +82,5 @@ obj-$(CONFIG_CIX_MBOX)	+= cix-mailbox.o
  obj-$(CONFIG_BCM74110_MAILBOX)	+= bcm74110-mailbox.o
- 
+
  obj-$(CONFIG_RISCV_SBI_MPXY_MBOX)	+= riscv-sbi-mpxy-mbox.o
 +
 +obj-$(CONFIG_MBOX_RP1) += rp1-mailbox.o
@@ -1283,7 +1272,7 @@ index 55a9fea95..b0cc959ee 100644
 @@ -2517,6 +2517,18 @@ config MFD_QNAP_MCU
  	  This driver implements the base serial protocol to talk to the
  	  device and provides functions for the other parts to hook into.
- 
+
 +config MFD_RP1
 +	tristate "RP1 MFD driver"
 +	depends on PCI
@@ -1305,7 +1294,7 @@ index 865e9f12f..57cde0542 100644
 +++ b/drivers/mfd/Makefile
 @@ -303,3 +303,5 @@ obj-$(CONFIG_MFD_RSMU_SPI)	+= rsmu_spi.o rsmu_core.o
  obj-$(CONFIG_MFD_UPBOARD_FPGA)	+= upboard-fpga.o
- 
+
  obj-$(CONFIG_MFD_LOONGSON_SE)	+= loongson-se.o
 +
 +obj-$(CONFIG_MFD_RP1)		+= rp1.o
@@ -2194,6 +2183,61 @@ index a342bcc61..000000000
 -MODULE_AUTHOR("Andrea della Porta <andrea.porta@suse.com>");
 -MODULE_DESCRIPTION("RaspberryPi RP1 misc device");
 -MODULE_LICENSE("GPL");
+diff --git a/drivers/net/ethernet/cadence/macb_main.c b/drivers/net/ethernet/cadence/macb_main.c
+index 90550055c..fa5949feb 100644
+--- a/drivers/net/ethernet/cadence/macb_main.c
++++ b/drivers/net/ethernet/cadence/macb_main.c
+@@ -1714,6 +1714,13 @@ static void macb_tx_restart(struct macb_queue *queue)
+
+ 	spin_lock(&bp->lock);
+ 	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
++	/*
++	 * Flush the PCIe posted-write queue so the TSTART doorbell
++	 * reliably reaches the MAC.  Without this, the write can sit
++	 * in the fabric and the MAC never advances, causing a silent
++	 * TX stall.
++	 */
++	(void)macb_readl(bp, NCR);
+ 	spin_unlock(&bp->lock);
+
+ out_tx_ptr_unlock:
+@@ -1758,17 +1765,26 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
+ 	if (work_done < budget && napi_complete_done(napi, work_done)) {
+ 		queue_writel(queue, IER, MACB_BIT(TCOMP));
+
+-		/* Packet completions only seem to propagate to raise
+-		 * interrupts when interrupts are enabled at the time, so if
+-		 * packets were sent while interrupts were disabled,
+-		 * they will not cause another interrupt to be generated when
+-		 * interrupts are re-enabled.
+-		 * Check for this case here to avoid losing a wakeup. This can
+-		 * potentially race with the interrupt handler doing the same
+-		 * actions if an interrupt is raised just after enabling them,
+-		 * but this should be harmless.
++		/*
++		 * TCOMP events that fire while the interrupt is masked do
++		 * not re-fire when IER is re-enabled.  Catch this two ways
++		 * to avoid losing a wakeup:
++		 *
++		 *   (1) Read ISR -- catches completions the hardware flagged
++		 *       but that we did not see as an interrupt.  The MMIO
++		 *       read doubles as a PCIe read barrier, flushing any
++		 *       in-flight descriptor TX_USED DMA writes into memory.
++		 *   (2) macb_tx_complete_pending() inspects the ring after
++		 *       that flush, catching a descriptor whose TX_USED is
++		 *       now visible as a result of the barrier.
++		 *
++		 * This can race with the interrupt handler taking the same
++		 * path if an interrupt fires just after the IER write;
++		 * rescheduling NAPI in that case is harmless.
+ 		 */
+-		if (macb_tx_complete_pending(queue)) {
++
++		if ((queue_readl(queue, ISR) & MACB_BIT(TCOMP)) ||
++		    macb_tx_complete_pending(queue)) {
+ 			queue_writel(queue, IDR, MACB_BIT(TCOMP));
+ 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+ 				queue_writel(queue, ISR, MACB_BIT(TCOMP));
 diff --git a/drivers/pci/controller/pcie-brcmstb.c b/drivers/pci/controller/pcie-brcmstb.c
 index 7e9b2f6a6..ca8be4c1f 100644
 --- a/drivers/pci/controller/pcie-brcmstb.c
@@ -2207,17 +2251,17 @@ index 7e9b2f6a6..ca8be4c1f 100644
  #include <linux/init.h>
  #include <linux/interrupt.h>
 @@ -48,6 +49,7 @@
- 
+
  #define PCIE_RC_CFG_PRIV1_LINK_CAPABILITY			0x04dc
  #define  PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_MAX_LINK_WIDTH_MASK	0x1f0
 +#define  PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK	0xc00
- 
+
  #define PCIE_RC_CFG_PRIV1_ROOT_CAP			0x4f8
  #define  PCIE_RC_CFG_PRIV1_ROOT_CAP_L1SS_MODE_MASK	0xf8
 @@ -63,6 +65,34 @@
  #define  PCIE_RC_PL_PHY_CTL_15_DIS_PLL_PD_MASK		0x400000
  #define  PCIE_RC_PL_PHY_CTL_15_PM_CLK_PERIOD_MASK	0xff
- 
+
 +#define PCIE_RC_PL_STATS_CTRL				0x1940
 +#define  PCIE_RC_PL_STATS_CTRL_EN_MASK			0x1
 +#define  PCIE_RC_PL_STATS_CTRL_LEN_MASK			0xfffffff0
@@ -2251,7 +2295,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
  #define  PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK	0x400
 @@ -135,11 +165,16 @@
  		PCIE_MISC_CPU_2_PCIE_MEM_WIN0_LIMIT_HI + ((win) * 8)
- 
+
  #define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_CLKREQ_DEBUG_ENABLE_MASK	0x2
 +#define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_PERST_ASSERT_MASK		0x8
 +#define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_REFCLK_OVRD_ENABLE_MASK		0x10000
@@ -2264,12 +2308,12 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	   PCIE_MISC_HARD_PCIE_HARD_DEBUG_REFCLK_OVRD_ENABLE_MASK | \
 +	   PCIE_MISC_HARD_PCIE_HARD_DEBUG_REFCLK_OVRD_OUT_MASK | \
  	   PCIE_MISC_HARD_PCIE_HARD_DEBUG_L1SS_ENABLE_MASK)
- 
+
  #define PCIE_MISC_UBUS_BAR1_CONFIG_REMAP			0x40ac
 @@ -213,6 +248,58 @@
  #define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_PWRDN_MASK		0x1
  #define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_PWRDN_SHIFT		0x0
- 
+
 +/* BCM7712/2712-specific registers */
 +
 +#define PCIE_RC_TL_VDM_CTL0				0x0a20
@@ -2324,11 +2368,11 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +
  /* Forward declarations */
  struct brcm_pcie;
- 
+
 @@ -240,6 +327,91 @@ struct inbound_win {
  	u64 cpu_addr;
  };
- 
+
 +#define TRACE_BUF_LEN 64
 +struct trace_entry {
 +	u8 st;
@@ -2420,7 +2464,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
 @@ -249,6 +421,12 @@ struct inbound_win {
   */
  #define CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN		BIT(0)
- 
+
 +/*
 + * MDIO register map differences and required changes to the defaults mean that refclk
 + * spread-spectrum clocking isn't supportable.
@@ -2451,16 +2495,16 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	u16 l0s_fail_cnt;
 +	u16 recov_cnt;
  };
- 
+
  static inline bool is_bmips(const struct brcm_pcie *pcie)
 @@ -473,7 +667,8 @@ static void brcm_pcie_set_outbound_win(struct brcm_pcie *pcie,
  				 MSI_FLAG_NO_AFFINITY)
- 
+
  #define BRCM_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
 -				  MSI_FLAG_MULTI_PCI_MSI)
 +				  MSI_FLAG_MULTI_PCI_MSI	| \
 +				  MSI_FLAG_PCI_MSIX)
- 
+
  static const struct msi_parent_ops brcm_msi_parent_ops = {
  	.required_flags		= BRCM_MSI_FLAGS_REQUIRED,
 @@ -839,6 +1034,7 @@ static int brcm_pcie_post_setup_bcm2712(struct brcm_pcie *pcie)
@@ -2468,13 +2512,13 @@ index 7e9b2f6a6..ca8be4c1f 100644
  	int ret, i;
  	u32 tmp;
 +	u8 qos_map[8];
- 
+
  	/* Allow a 54MHz (xosc) refclk source */
  	ret = brcm_pcie_mdio_write(pcie->base, MDIO_PORT0, SET_ADDR_OFFSET, 0x1600);
 @@ -862,6 +1058,108 @@ static int brcm_pcie_post_setup_bcm2712(struct brcm_pcie *pcie)
  	tmp |= 0x12;
  	writel(tmp, pcie->base + PCIE_RC_PL_PHY_CTL_15);
- 
+
 +	/*
 +	 * BCM7712/2712 uses a UBUS-AXI bridge.
 +	 * Suppress AXI error responses and return 1s for read failures.
@@ -2579,7 +2623,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +
  	return 0;
  }
- 
+
 @@ -1074,7 +1372,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
  	void __iomem *base = pcie->base;
  	struct pci_host_bridge *bridge;
@@ -2590,8 +2634,8 @@ index 7e9b2f6a6..ca8be4c1f 100644
  	int num_inbound_wins = 0;
  	int memc, ret;
 @@ -1174,9 +1472,12 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
- 
- 
+
+
  	/* Don't advertise L0s capability if 'aspm-no-l0s' */
 +	aspm_support = PCIE_LINK_STATE_L1;
 +	if (!of_property_read_bool(pcie->np, "aspm-no-l0s"))
@@ -2602,10 +2646,10 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	u32p_replace_bits(&tmp, aspm_support,
 +		PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK);
  	writel(tmp, base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
- 
+
  	/* 'tmp' still holds the contents of PRIV1_LINK_CAPABILITY */
 @@ -1324,35 +1625,198 @@ static void brcm_config_clkreq(struct brcm_pcie *pcie)
- 
+
  	} else {
  		/*
 -		 * "safe" -- No power savings; refclk is driven by RC
@@ -2626,10 +2670,10 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +		writel(tmp, pcie->base + PCIE_RC_CFG_PRIV1_ROOT_CAP);
  	}
  	writel(clkreq_cntl, pcie->base + HARD_DEBUG(pcie));
- 
+
  	dev_info(pcie->dev, "clkreq-mode set to %s\n", mode);
  }
- 
+
 +static void brcm_pcie_stats_trigger(struct brcm_pcie *pcie, u32 micros)
 +{
 +	u32 tmp;
@@ -2766,11 +2810,11 @@ index 7e9b2f6a6..ca8be4c1f 100644
  	bool ssc_good = false;
  	int ret, i;
 +	u32 tmp;
- 
+
  	/* Limit the generation if specified */
  	if (pcie->gen)
  		brcm_pcie_set_gen(pcie, pcie->gen);
- 
+
 +	brcm_pcie_stats_trigger(pcie, 0);
 +
  	/* Unassert the fundamental reset */
@@ -2796,7 +2840,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	}
  	if (ret)
  		return ret;
- 
+
 +	if (pcie->trace_ltssm)
 +		brcm_pcie_trace_link_start(pcie);
 +	/*
@@ -2804,12 +2848,12 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	 * sections 2.2, PCIe r5.0, 6.6.1.
 +	 */
  	msleep(PCIE_RESET_CONFIG_WAIT_MS);
- 
+
  	/*
 @@ -1385,6 +1849,20 @@ static int brcm_pcie_start_link(struct brcm_pcie *pcie)
  		 pci_speed_string(pcie_link_speed[cls]), nlw,
  		 ssc_good ? "(SSC)" : "(!SSC)");
- 
+
 +	/* Snapshot the boot-time stats */
 +	brcm_pcie_stats_capture(pcie);
 +
@@ -2826,9 +2870,9 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +
  	return 0;
  }
- 
+
 @@ -1705,6 +2183,7 @@ static int brcm_pcie_resume_noirq(struct device *dev)
- 
+
  static void __brcm_pcie_remove(struct brcm_pcie *pcie)
  {
 +	debugfs_remove_recursive(pcie->debugfs_dir);
@@ -2843,11 +2887,11 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	.quirks		= CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN | CFG_QUIRK_NO_SSC,
  	.num_inbound_wins = 10,
  };
- 
+
 @@ -1861,6 +2340,98 @@ static struct pci_ops brcm7425_pcie_ops = {
  	.remove_bus = brcm_pcie_remove_bus,
  };
- 
+
 +static ssize_t debugfs_stats_trigger_write(struct file *filp,
 +					   const char __user *buf,
 +					   size_t count, loff_t *ppos)
@@ -2960,19 +3004,19 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +			return -ENOMEM;
 +		}
 +	}
- 
+
  	pcie->base = devm_platform_ioremap_resource(pdev, 0);
  	if (IS_ERR(pcie->base))
 @@ -1895,7 +2479,10 @@ static int brcm_pcie_probe(struct platform_device *pdev)
  	ret = of_pci_get_max_link_speed(np);
  	pcie->gen = (ret < 0) ? 0 : ret;
- 
+
 -	pcie->ssc = of_property_read_bool(np, "brcm,enable-ssc");
 +	pcie->ssc = !(pcie->cfg->quirks & CFG_QUIRK_NO_SSC) &&
 +		    of_property_read_bool(np, "brcm,enable-ssc");
 +
 +	of_property_read_u32(np, "brcm,tperst-clk-ms", &pcie->tperst_clk_ms);
- 
+
  	pcie->rescal = devm_reset_control_get_optional_shared(&pdev->dev, "rescal");
  	if (IS_ERR(pcie->rescal))
 diff --git a/drivers/pinctrl/Kconfig b/drivers/pinctrl/Kconfig
@@ -2980,7 +3024,7 @@ index 4f8507ebb..41d0abc42 100644
 --- a/drivers/pinctrl/Kconfig
 +++ b/drivers/pinctrl/Kconfig
 @@ -672,8 +672,8 @@ config PINCTRL_MLXBF3
- 
+
  config PINCTRL_RP1
  	tristate "Pinctrl driver for RP1"
 -	depends on MISC_RP1
@@ -2997,7 +3041,7 @@ index c5dbf4e9d..e0c71374f 100644
 @@ -1281,6 +1281,8 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
  	struct pinctrl_state *old_state = READ_ONCE(p->state);
  	int ret;
- 
+
 +	dev_info(p->dev, "PINCTRL: Attempting to apply state for %s\n", p->dev->of_node->name);
 +
  	if (old_state) {
@@ -3010,7 +3054,7 @@ index ffc2f0b46..915802586 100644
 @@ -1750,6 +1750,8 @@ static int rp1_pinctrl_probe(struct platform_device *pdev)
  	struct gpio_irq_chip *girq;
  	int err, i;
- 
+
 +	dev_info(dev, "Loading pinctl driver");
 +
  	pc->dev = dev;
@@ -3023,7 +3067,7 @@ index 3a8dd184b..563c07106 100644
 @@ -441,6 +441,14 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
  	int i;
  	struct pin_desc *desc;
- 
+
 +	/* Add this inside pinmux_enable_setting near the start */
 +	dev_dbg(pctldev->dev, "driver '%s' requesting pin %d for function '%s' in group '%s'\n",
 +					setting->dev_name, setting->data.mux.group,
@@ -3038,14 +3082,14 @@ index 3a8dd184b..563c07106 100644
 @@ -492,6 +500,10 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
  	ret = ops->set_mux(pctldev, setting->data.mux.func,
  			   setting->data.mux.group);
- 
+
 +	if (ret < 0)
 +		dev_err(pctldev->dev, "pin %d denied to %s (Ret: %d)\n",
 +							setting->data.mux.group, setting->dev_name, ret);
 +
  	if (ret)
  		goto err_set_mux;
- 
+
 diff --git a/drivers/pwm/Kconfig b/drivers/pwm/Kconfig
 index c2fd3f4b6..3a81b1ecc 100644
 --- a/drivers/pwm/Kconfig
@@ -3053,7 +3097,7 @@ index c2fd3f4b6..3a81b1ecc 100644
 @@ -607,6 +607,15 @@ config PWM_RENESAS_TPU
  	  To compile this driver as a module, choose M here: the module
  	  will be called pwm-renesas-tpu.
- 
+
 +config PWM_RP1
 +	tristate "RP1 PWM support"
 +	depends on ARCH_BCM2835 || COMPILE_TEST
@@ -3525,9 +3569,9 @@ index 4a86e6b91..8fb2b76e5 100644
 --- a/include/linux/irqdomain.h
 +++ b/include/linux/irqdomain.h
 @@ -494,6 +494,12 @@ static inline unsigned int irq_find_mapping(struct irq_domain *domain,
- 
+
  extern const struct irq_domain_ops irq_domain_simple_ops;
- 
+
 +static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
 +					     irq_hw_number_t hwirq)
 +{
