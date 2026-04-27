@@ -2313,7 +2313,7 @@ index 0830c4897..0f2dd0ef1 100644
  	int	tx_bd_rd_prefetch;
  
 diff --git a/drivers/net/ethernet/cadence/macb_main.c b/drivers/net/ethernet/cadence/macb_main.c
-index 17d4a3e03..58fe73b62 100644
+index 17d4a3e03..15a9b4a9c 100644
 --- a/drivers/net/ethernet/cadence/macb_main.c
 +++ b/drivers/net/ethernet/cadence/macb_main.c
 @@ -10,9 +10,12 @@
@@ -2476,105 +2476,7 @@ index 17d4a3e03..58fe73b62 100644
  static void macb_mac_config(struct phylink_config *config, unsigned int mode,
  			    const struct phylink_link_state *state)
  {
-@@ -797,6 +917,97 @@ static void gem_shuffle_tx_rings(struct macb *bp)
- 		gem_shuffle_tx_one_ring(queue);
- }
- 
-+/* Use juggling algorithm to left rotate tx ring and tx skb array */
-+static void gem_shuffle_tx_one_ring(struct macb_queue *queue)
-+{
-+	unsigned int head, tail, count, ring_size, desc_size;
-+	struct macb_tx_skb tx_skb, *skb_curr, *skb_next;
-+	struct macb_dma_desc *desc_curr, *desc_next;
-+	unsigned int i, cycles, shift, curr, next;
-+	struct macb *bp = queue->bp;
-+	unsigned char desc[24];
-+	unsigned long flags;
-+
-+	desc_size = macb_dma_desc_get_size(bp);
-+
-+	if (WARN_ON_ONCE(desc_size > ARRAY_SIZE(desc)))
-+		return;
-+
-+	spin_lock_irqsave(&queue->tx_ptr_lock, flags);
-+	head = queue->tx_head;
-+	tail = queue->tx_tail;
-+	ring_size = bp->tx_ring_size;
-+	count = CIRC_CNT(head, tail, ring_size);
-+
-+	if (!(tail % ring_size))
-+		goto unlock;
-+
-+	if (!count) {
-+		queue->tx_head = 0;
-+		queue->tx_tail = 0;
-+		goto unlock;
-+	}
-+
-+	shift = tail % ring_size;
-+	cycles = gcd(ring_size, shift);
-+
-+	for (i = 0; i < cycles; i++) {
-+		memcpy(&desc, macb_tx_desc(queue, i), desc_size);
-+		memcpy(&tx_skb, macb_tx_skb(queue, i),
-+		       sizeof(struct macb_tx_skb));
-+
-+		curr = i;
-+		next = (curr + shift) % ring_size;
-+
-+		while (next != i) {
-+			desc_curr = macb_tx_desc(queue, curr);
-+			desc_next = macb_tx_desc(queue, next);
-+
-+			memcpy(desc_curr, desc_next, desc_size);
-+
-+			if (next == ring_size - 1)
-+				desc_curr->ctrl &= ~MACB_BIT(TX_WRAP);
-+			if (curr == ring_size - 1)
-+				desc_curr->ctrl |= MACB_BIT(TX_WRAP);
-+
-+			skb_curr = macb_tx_skb(queue, curr);
-+			skb_next = macb_tx_skb(queue, next);
-+			memcpy(skb_curr, skb_next, sizeof(struct macb_tx_skb));
-+
-+			curr = next;
-+			next = (curr + shift) % ring_size;
-+		}
-+
-+		desc_curr = macb_tx_desc(queue, curr);
-+		memcpy(desc_curr, &desc, desc_size);
-+		if (i == ring_size - 1)
-+			desc_curr->ctrl &= ~MACB_BIT(TX_WRAP);
-+		if (curr == ring_size - 1)
-+			desc_curr->ctrl |= MACB_BIT(TX_WRAP);
-+		memcpy(macb_tx_skb(queue, curr), &tx_skb,
-+		       sizeof(struct macb_tx_skb));
-+	}
-+
-+	queue->tx_head = count;
-+	queue->tx_tail = 0;
-+
-+	/* Make descriptor updates visible to hardware */
-+	wmb();
-+
-+unlock:
-+	spin_unlock_irqrestore(&queue->tx_ptr_lock, flags);
-+}
-+
-+/* Rotate the queue so that the tail is at index 0 */
-+static void gem_shuffle_tx_rings(struct macb *bp)
-+{
-+	struct macb_queue *queue;
-+	int q;
-+
-+	for (q = 0, queue = bp->queues; q < bp->num_queues; q++, queue++)
-+		gem_shuffle_tx_one_ring(queue);
-+}
-+
- static void macb_mac_link_up(struct phylink_config *config,
- 			     struct phy_device *phy,
- 			     unsigned int mode, phy_interface_t interface,
-@@ -882,6 +1093,8 @@ static const struct phylink_mac_ops macb_phylink_ops = {
+@@ -882,6 +1002,8 @@ static const struct phylink_mac_ops macb_phylink_ops = {
  	.mac_config = macb_mac_config,
  	.mac_link_down = macb_mac_link_down,
  	.mac_link_up = macb_mac_link_up,
@@ -2583,7 +2485,7 @@ index 17d4a3e03..58fe73b62 100644
  };
  
  static bool macb_phy_handle_exists(struct device_node *dn)
-@@ -977,6 +1190,18 @@ static int macb_mii_probe(struct net_device *dev)
+@@ -977,6 +1099,18 @@ static int macb_mii_probe(struct net_device *dev)
  		}
  	}
  
@@ -2602,7 +2504,7 @@ index 17d4a3e03..58fe73b62 100644
  	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwnode,
  				     bp->phy_interface, &macb_phylink_ops);
  	if (IS_ERR(bp->phylink)) {
-@@ -1043,6 +1268,7 @@ static int macb_mii_init(struct macb *bp)
+@@ -1043,6 +1177,7 @@ static int macb_mii_init(struct macb *bp)
  	bp->mii_bus->write = &macb_mdio_write_c22;
  	bp->mii_bus->read_c45 = &macb_mdio_read_c45;
  	bp->mii_bus->write_c45 = &macb_mdio_write_c45;
@@ -2610,7 +2512,7 @@ index 17d4a3e03..58fe73b62 100644
  	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
  		 bp->pdev->name, bp->pdev->id);
  	bp->mii_bus->priv = bp;
-@@ -1377,6 +1603,9 @@ static int macb_tx_complete(struct macb_queue *queue, int budget)
+@@ -1377,6 +1512,9 @@ static int macb_tx_complete(struct macb_queue *queue, int budget)
  		netif_wake_subqueue(bp->dev, queue_index);
  	spin_unlock_irqrestore(&queue->tx_ptr_lock, flags);
  
@@ -2620,7 +2522,7 @@ index 17d4a3e03..58fe73b62 100644
  	return packets;
  }
  
-@@ -1719,6 +1948,11 @@ static int macb_rx(struct macb_queue *queue, struct napi_struct *napi,
+@@ -1719,6 +1857,11 @@ static int macb_rx(struct macb_queue *queue, struct napi_struct *napi,
  
  		macb_init_rx_ring(queue);
  		queue_writel(queue, RBQP, queue->rx_ring_dma);
@@ -2632,7 +2534,7 @@ index 17d4a3e03..58fe73b62 100644
  
  		macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
  
-@@ -1807,6 +2041,13 @@ static void macb_tx_restart(struct macb_queue *queue)
+@@ -1807,6 +1950,13 @@ static void macb_tx_restart(struct macb_queue *queue)
  
  	spin_lock(&bp->lock);
  	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
@@ -2646,7 +2548,7 @@ index 17d4a3e03..58fe73b62 100644
  	spin_unlock(&bp->lock);
  
  out_tx_ptr_unlock:
-@@ -1851,17 +2092,26 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
+@@ -1851,17 +2001,26 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
  	if (work_done < budget && napi_complete_done(napi, work_done)) {
  		queue_writel(queue, IER, MACB_BIT(TCOMP));
  
@@ -2683,7 +2585,7 @@ index 17d4a3e03..58fe73b62 100644
  			queue_writel(queue, IDR, MACB_BIT(TCOMP));
  			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
  				queue_writel(queue, ISR, MACB_BIT(TCOMP));
-@@ -1873,6 +2123,59 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
+@@ -1873,6 +2032,59 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
  	return work_done;
  }
  
@@ -2743,7 +2645,7 @@ index 17d4a3e03..58fe73b62 100644
  static void macb_hresp_error_task(struct work_struct *work)
  {
  	struct macb *bp = from_work(bp, work, hresp_err_bh_work);
-@@ -2021,8 +2324,9 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
+@@ -2021,8 +2233,9 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
  				queue_writel(queue, ISR, MACB_BIT(TCOMP) |
  							 MACB_BIT(TXUBR));
  
@@ -2754,7 +2656,7 @@ index 17d4a3e03..58fe73b62 100644
  				wmb(); // ensure softirq can see update
  			}
  
-@@ -2480,6 +2784,12 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
+@@ -2480,6 +2693,12 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
  			     skb->len);
  
  	spin_lock(&bp->lock);
@@ -2767,22 +2669,7 @@ index 17d4a3e03..58fe73b62 100644
  	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
  	spin_unlock(&bp->lock);
  
-@@ -2715,6 +3025,14 @@ static void gem_init_rx_ring(struct macb_queue *queue)
- 	gem_rx_refill(queue);
- }
- 
-+static void gem_init_rx_ring(struct macb_queue *queue)
-+{
-+	queue->rx_tail = 0;
-+	queue->rx_prepared_head = 0;
-+
-+	gem_rx_refill(queue);
-+}
-+
- static void gem_init_rings(struct macb *bp)
- {
- 	struct macb_queue *queue;
-@@ -2908,6 +3226,37 @@ static void macb_configure_dma(struct macb *bp)
+@@ -2908,6 +3127,37 @@ static void macb_configure_dma(struct macb *bp)
  	}
  }
  
@@ -2820,7 +2707,7 @@ index 17d4a3e03..58fe73b62 100644
  static void macb_init_hw(struct macb *bp)
  {
  	u32 config;
-@@ -2936,6 +3285,11 @@ static void macb_init_hw(struct macb *bp)
+@@ -2936,6 +3186,11 @@ static void macb_init_hw(struct macb *bp)
  	if (bp->caps & MACB_CAPS_JUMBO)
  		bp->rx_frm_len_mask = MACB_RX_JFRMLEN_MASK;
  
@@ -2832,7 +2719,7 @@ index 17d4a3e03..58fe73b62 100644
  	macb_configure_dma(bp);
  
  	/* Enable RX partial store and forward and set watermark */
-@@ -3092,6 +3446,9 @@ static int macb_open(struct net_device *dev)
+@@ -3092,6 +3347,9 @@ static int macb_open(struct net_device *dev)
  	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
  		napi_enable(&queue->napi_rx);
  		napi_enable(&queue->napi_tx);
@@ -2842,7 +2729,7 @@ index 17d4a3e03..58fe73b62 100644
  	}
  
  	macb_init_hw(bp);
-@@ -3141,6 +3498,8 @@ static int macb_close(struct net_device *dev)
+@@ -3141,6 +3399,8 @@ static int macb_close(struct net_device *dev)
  		netdev_tx_reset_queue(netdev_get_tx_queue(dev, q));
  	}
  
@@ -2851,7 +2738,7 @@ index 17d4a3e03..58fe73b62 100644
  	phylink_stop(bp->phylink);
  	phylink_disconnect_phy(bp->phylink);
  
-@@ -3299,6 +3658,52 @@ static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
+@@ -3299,6 +3559,52 @@ static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
  	}
  }
  
@@ -2904,17 +2791,7 @@ index 17d4a3e03..58fe73b62 100644
  static void macb_get_stats(struct net_device *dev,
  			   struct rtnl_link_stats64 *nstat)
  {
-@@ -4013,6 +4418,9 @@ static int gem_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
- 	struct macb *bp = netdev_priv(netdev);
- 	int ret;
- 
-+	if (!(netdev->hw_features & NETIF_F_NTUPLE))
-+		return -EOPNOTSUPP;
-+
- 	if (!(netdev->hw_features & NETIF_F_NTUPLE))
- 		return -EOPNOTSUPP;
- 
-@@ -4054,7 +4462,23 @@ static const struct ethtool_ops macb_ethtool_ops = {
+@@ -4054,7 +4360,23 @@ static const struct ethtool_ops macb_ethtool_ops = {
  	.set_ringparam		= macb_set_ringparam,
  };
  
@@ -2938,7 +2815,7 @@ index 17d4a3e03..58fe73b62 100644
  	.get_regs_len		= macb_get_regs_len,
  	.get_regs		= macb_get_regs,
  	.get_wol		= macb_get_wol,
-@@ -4068,12 +4492,16 @@ static const struct ethtool_ops gem_ethtool_ops = {
+@@ -4068,12 +4390,16 @@ static const struct ethtool_ops gem_ethtool_ops = {
  	.get_eth_mac_stats	= gem_get_eth_mac_stats,
  	.get_eth_phy_stats	= gem_get_eth_phy_stats,
  	.get_rmon_stats		= gem_get_rmon_stats,
@@ -2955,7 +2832,7 @@ index 17d4a3e03..58fe73b62 100644
  };
  
  static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-@@ -4668,6 +5096,8 @@ static int macb_init(struct platform_device *pdev)
+@@ -4668,6 +4994,8 @@ static int macb_init(struct platform_device *pdev)
  		}
  
  		INIT_WORK(&queue->tx_error_task, macb_tx_error_task);
@@ -2964,7 +2841,7 @@ index 17d4a3e03..58fe73b62 100644
  		q++;
  	}
  
-@@ -5474,7 +5904,8 @@ static const struct macb_config versal_config = {
+@@ -5474,7 +5802,8 @@ static const struct macb_config versal_config = {
  static const struct macb_config raspberrypi_rp1_config = {
  	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_CLK_HW_CHG |
  		MACB_CAPS_JUMBO |
@@ -2974,7 +2851,7 @@ index 17d4a3e03..58fe73b62 100644
  	.dma_burst_length = 16,
  	.clk_init = macb_clk_init,
  	.init = macb_init,
-@@ -5634,6 +6065,11 @@ static int macb_probe(struct platform_device *pdev)
+@@ -5634,6 +5963,11 @@ static int macb_probe(struct platform_device *pdev)
  			}
  		}
  	}
@@ -2986,7 +2863,7 @@ index 17d4a3e03..58fe73b62 100644
  	spin_lock_init(&bp->lock);
  	spin_lock_init(&bp->stats_lock);
  
-@@ -5694,6 +6130,21 @@ static int macb_probe(struct platform_device *pdev)
+@@ -5694,6 +6028,21 @@ static int macb_probe(struct platform_device *pdev)
  	else
  		bp->phy_interface = interface;
  
@@ -3008,7 +2885,7 @@ index 17d4a3e03..58fe73b62 100644
  	/* IP specific init */
  	err = init(pdev);
  	if (err)
-@@ -5712,6 +6163,7 @@ static int macb_probe(struct platform_device *pdev)
+@@ -5712,6 +6061,7 @@ static int macb_probe(struct platform_device *pdev)
  	}
  
  	INIT_WORK(&bp->hresp_err_bh_work, macb_hresp_error_task);
@@ -3016,7 +2893,7 @@ index 17d4a3e03..58fe73b62 100644
  
  	netdev_info(dev, "Cadence %s rev 0x%08x at 0x%08lx irq %d (%pM)\n",
  		    macb_is_gem(bp) ? "GEM" : "MACB", macb_readl(bp, MID),
-@@ -5756,6 +6208,7 @@ static void macb_remove(struct platform_device *pdev)
+@@ -5756,6 +6106,7 @@ static void macb_remove(struct platform_device *pdev)
  		mdiobus_free(bp->mii_bus);
  
  		device_set_wakeup_enable(&bp->pdev->dev, 0);
