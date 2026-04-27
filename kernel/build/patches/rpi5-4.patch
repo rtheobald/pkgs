@@ -20,12 +20,12 @@ index 3e0319fdb..17508c57b 100644
 --- a/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
 +++ b/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
 @@ -16,26 +16,168 @@
-
+ 
  /dts-v1/;
-
+ 
 +#include <dt-bindings/pwm/pwm.h>
  #include "bcm2712-rpi-5-b-ovl-rp1.dts"
-
+ 
 +&pcie2 {
 +	brcm,vdm-qos-map = /bits/ 8 <8 8 8 9 10 10 11 11>;
 +	max-link-speed = <3>;
@@ -86,7 +86,7 @@ index 3e0319fdb..17508c57b 100644
  		ethernet0 = &rp1_eth;
  	};
  };
-
+ 
 -&pcie2 {
 -	#include "rp1-nexus.dtsi"
 +&thermal_trips {
@@ -173,7 +173,7 @@ index 3e0319fdb..17508c57b 100644
 +	pinctrl-names = "default";
 +	status = "okay";
  };
-
+ 
  &rp1_eth {
 -	assigned-clocks = <&rp1_clocks RP1_CLK_ETH_TSU>,
 -			  <&rp1_clocks RP1_CLK_ETH>;
@@ -191,12 +191,12 @@ index 3e0319fdb..17508c57b 100644
 +	cdns,ar2r-max-pipe = [08];
 +	cdns,aw2w-max-pipe = [08];
 +	cdns,use-aw2b-fill;
-
+ 
  	mdio {
  		reg = <0x1>;
 @@ -45,12 +187,46 @@ mdio {
  		#size-cells = <0>;
-
+ 
  		phy1: ethernet-phy@1 {
 +			brcm,powerdown-enable;
 +			// eee-broken-100tx;
@@ -205,7 +205,7 @@ index 3e0319fdb..17508c57b 100644
  		};
  	};
  };
-
+ 
  &rp1_gpio {
 +
 +	rp1_sdio0_22_27: rp1_sdio0_22_27 {
@@ -248,7 +248,7 @@ index 205b87f55..b3c06baa6 100644
 @@ -291,6 +291,18 @@ interrupt-controller@7d517000 {
  			#interrupt-cells = <1>;
  		};
-
+ 
 +		avs_monitor: avs-monitor@7d542000 {
 +			compatible = "brcm,bcm2711-avs-monitor",
 +						"syscon", "simple-mfd";
@@ -267,7 +267,7 @@ index 205b87f55..b3c06baa6 100644
 @@ -481,17 +493,19 @@ axi: axi {
  		#address-cells = <2>;
  		#size-cells = <2>;
-
+ 
 -		ranges = <0x00 0x00000000  0x00 0x00000000  0x10 0x00000000>,
 -			 <0x10 0x00000000  0x10 0x00000000  0x01 0x00000000>,
 -			 <0x14 0x00000000  0x14 0x00000000  0x04 0x00000000>,
@@ -279,7 +279,7 @@ index 205b87f55..b3c06baa6 100644
 +			<0x14 0x0   0x14 0x0   0x04 0x0>,
 +			<0x18 0x0   0x18 0x0   0x04 0x0>,
 +			<0x1c 0x0   0x1c 0x0   0x04 0x0>;
-
+ 
 -		dma-ranges = <0x00 0x00000000  0x00 0x00000000  0x10 0x00000000>,
 -			     <0x10 0x00000000  0x10 0x00000000  0x01 0x00000000>,
 -			     <0x14 0x00000000  0x14 0x00000000  0x04 0x00000000>,
@@ -291,11 +291,11 @@ index 205b87f55..b3c06baa6 100644
 +			<0x14 0x0   0x14 0x0   0x04 0x0>,
 +			<0x18 0x0   0x18 0x0   0x04 0x0>,
 +			<0x1c 0x0   0x1c 0x0   0x04 0x0>;
-
+ 
  		vc4: gpu {
  			compatible = "brcm,bcm2712-vc6";
 @@ -560,15 +574,17 @@ pcie1: pcie@1000110000 {
-
+ 
  			ranges =
  				/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
 -				<0x02000000 0x00 0x00000000 0x1b 0x00000000 0x00 0xfffffffc>,
@@ -304,7 +304,7 @@ index 205b87f55..b3c06baa6 100644
  				/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
 -				<0x43000000 0x04 0x00000000 0x18 0x00000000 0x03 0x00000000>;
 +				<0x43000000 0x04 0x00000000  0x18 0x00000000  0x03 0x80000000>;
-
+ 
  			dma-ranges =
 -				/* 64GiB, 64-bit, non-prefetchable at PCIe 10_0000_0000 */
 -				<0x03000000 0x10 0x00000000 0x00 0x00000000 0x10 0x00000000>,
@@ -315,11 +315,11 @@ index 205b87f55..b3c06baa6 100644
 +
 +					/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP1 */
 +					<0x03000000 0xff 0xfffff000   0x10 0x00131000   0x00 0x00001000>;
-
+ 
  			status = "disabled";
  		};
 @@ -599,17 +615,20 @@ pcie2: pcie@1000120000 {
-
+ 
  			ranges =
  				/* ~4GiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
 -				<0x02000000 0x00 0x00000000 0x1f 0x00000000 0x00 0xfffffffc>,
@@ -328,7 +328,7 @@ index 205b87f55..b3c06baa6 100644
  				/* 12GiB, 64-bit, prefetchable at PCIe 04_0000_0000 */
 -				<0x43000000 0x04 0x00000000 0x1c 0x00000000 0x03 0x00000000>;
 +				<0x43000000 0x04 0x0   0x1c 0x0   0x03 0x0>;
-
+ 
  			dma-ranges =
  				/* 4MiB, 32-bit, non-prefetchable at PCIe 00_0000_0000 */
 -				<0x02000000 0x00 0x00000000 0x1f 0x00000000 0x00 0x00400000>,
@@ -341,7 +341,7 @@ index 205b87f55..b3c06baa6 100644
  				/* 4KiB, 64-bit, non-prefetchable at PCIe ff_ffff_f000 MIP0 */
 -				<0x03000000 0xff 0xfffff000 0x10 0x00130000 0x00 0x00001000>;
 +				<0x03000000 0xff 0xfffff000   0x10 0x00130000   0x00 0x1000>;
-
+ 
  			status = "disabled";
  		};
 diff --git a/arch/arm64/boot/dts/broadcom/rp1-common.dtsi b/arch/arm64/boot/dts/broadcom/rp1-common.dtsi
@@ -353,7 +353,7 @@ index 5a815c379..84c8725bc 100644
  #include <dt-bindings/interrupt-controller/irq.h>
  #include <dt-bindings/clock/raspberrypi,rp1-clocks.h>
 +#include <dt-bindings/mfd/rp1.h>
-
+ 
 -pci_ep_bus: pci-ep-bus@1 {
 -	compatible = "simple-bus";
 -	ranges = <0x00 0x40000000  0x01 0x00 0x00000000  0x00 0x00400000>;
@@ -363,7 +363,7 @@ index 5a815c379..84c8725bc 100644
 +	status = "disabled";
  	#address-cells = <2>;
  	#size-cells = <2>;
-
+ 
 -	rp1_clocks: clocks@40018000 {
 +	interrupt-controller;
 +	#interrupt-cells = <2>;
@@ -475,7 +475,7 @@ index 5a815c379..84c8725bc 100644
 +		assigned-clock-rates = <50000000>;
 +		status = "disabled";
  	};
-
+ 
 -	rp1_gpio: pinctrl@400d0000 {
 +	rp1_gpio: pinctrl@d0000 {
  		compatible = "raspberrypi,rp1-gpio";
@@ -498,7 +498,7 @@ index 5a815c379..84c8725bc 100644
 +			<1 IRQ_TYPE_LEVEL_HIGH>,
 +			<2 IRQ_TYPE_LEVEL_HIGH>;
  	};
-
+ 
 -	rp1_eth: ethernet@40100000 {
 -		compatible = "raspberrypi,rp1-gem";
 -		reg = <0x00 0x40100000  0x0 0x4000>;
@@ -521,7 +521,7 @@ index 5a815c379..84c8725bc 100644
 @@ -56,9 +146,9 @@ rp1_eth: ethernet@40100000 {
  		#size-cells = <0>;
  	};
-
+ 
 -	rp1_usb0: usb@40200000 {
 +	rp1_usb0: usb@200000 {
  		compatible = "snps,dwc3";
@@ -533,7 +533,7 @@ index 5a815c379..84c8725bc 100644
 @@ -70,9 +160,9 @@ rp1_usb0: usb@40200000 {
  		status = "disabled";
  	};
-
+ 
 -	rp1_usb1: usb@40300000 {
 +	rp1_usb1: usb@300000 {
  		compatible = "snps,dwc3";
@@ -548,7 +548,7 @@ index 0ef30d7f1..8262220c1 100644
 +++ b/arch/arm64/boot/dts/broadcom/rp1-nexus.dtsi
 @@ -1,14 +1,17 @@
  // SPDX-License-Identifier: (GPL-2.0 OR MIT)
-
+ 
 -rp1_nexus {
 +rp1_nexus: rp1_nexus {
  	compatible = "pci1de4,1";
@@ -567,7 +567,7 @@ index 0ef30d7f1..8262220c1 100644
 +		<0x43000000 0x10 0x0   0x43000000 0x10 0x0   0x10 0x0>,
 +		<0x02000000 0x00 0x0   0x02000000 0x00 0x0   0x00 0x410000>,
 +  	<0x02000000 0x10 0x0   0x02000000 0x10 0x0   0x10 0x00>;
-
+ 
  	#include "rp1-common.dtsi"
  };
 diff --git a/drivers/clk/Kconfig b/drivers/clk/Kconfig
@@ -575,7 +575,7 @@ index 3a1611008..850f7e211 100644
 --- a/drivers/clk/Kconfig
 +++ b/drivers/clk/Kconfig
 @@ -89,8 +89,8 @@ config COMMON_CLK_RK808
-
+ 
  config COMMON_CLK_RP1
  	tristate "Raspberry Pi RP1-based clock support"
 -	depends on MISC_RP1 || COMPILE_TEST
@@ -604,15 +604,15 @@ index fd144755b..1eef22e7c 100644
 +++ b/drivers/clk/clk-rp1.c
 @@ -263,7 +263,7 @@
  #define CLK_DIV_FRAC_BITS		16
-
+ 
  #define LOCK_TIMEOUT_US			100000
 -#define LOCK_POLL_DELAY_US		5
 +#define LOCK_POLL_DELAY_US	5
-
+ 
  #define MAX_CLK_PARENTS			16
-
+ 
 @@ -2393,6 +2393,19 @@ static const struct regmap_config rp1_clk_regmap_cfg = {
-
+ 
  static int rp1_clk_probe(struct platform_device *pdev)
  {
 +
@@ -638,7 +638,7 @@ index bbd2155d8..37359a5de 100644
 @@ -119,6 +119,15 @@ config RASPBERRYPI_FIRMWARE
  	  This option enables support for communicating with the firmware on the
  	  Raspberry Pi.
-
+ 
 +config FIRMWARE_RP1
 +	tristate "RP1 Firmware Driver"
 +	depends on MBOX_RP1
@@ -989,7 +989,7 @@ index 37269db2d..619af6a03 100644
 @@ -209,6 +209,9 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
  	bool update = false;
  	int ret = 0;
-
+ 
 +	dev_dbg(ctx->dev, "input %lu -> duty %llu/%llu (enabled: %d)\n",
 +         pwm, state->duty_cycle, state->period, state->enabled);
 +
@@ -999,17 +999,17 @@ index 37269db2d..619af6a03 100644
 @@ -418,6 +421,9 @@ pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
  	struct pwm_fan_ctx *ctx = cdev->devdata;
  	int ret;
-
+ 
 +	dev_dbg(ctx->dev, "Requested cooling state %lu (current: %u)\n",
 +         state, ctx->pwm_fan_state);
 +
  	if (!ctx || (state > ctx->pwm_fan_max_state))
  		return -EINVAL;
-
+ 
 @@ -509,6 +515,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
  	int channel_count = 1;	/* We always have a PWM channel. */
  	int i;
-
+ 
 +	dev_dbg(dev, "probe start\n");
 +
  	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -1018,12 +1018,12 @@ index 37269db2d..619af6a03 100644
 @@ -697,6 +705,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
  		ctx->cdev = cdev;
  	}
-
+ 
 +	dev_dbg(dev, "probe successful\n");
 +
  	return 0;
  }
-
+ 
 diff --git a/drivers/mailbox/Kconfig b/drivers/mailbox/Kconfig
 index 29f16f220..61211365f 100644
 --- a/drivers/mailbox/Kconfig
@@ -1031,7 +1031,7 @@ index 29f16f220..61211365f 100644
 @@ -390,4 +390,13 @@ config RISCV_SBI_MPXY_MBOX
  	  or HS-mode hypervisor). Say Y here if you want to have this support.
  	  If unsure say N.
-
+ 
 +config MBOX_RP1
 +	tristate "RP1 Mailbox"
 +	depends on MFD_RP1
@@ -1048,7 +1048,7 @@ index 81820a4f5..120ead8f8 100644
 +++ b/drivers/mailbox/Makefile
 @@ -82,3 +82,5 @@ obj-$(CONFIG_CIX_MBOX)	+= cix-mailbox.o
  obj-$(CONFIG_BCM74110_MAILBOX)	+= bcm74110-mailbox.o
-
+ 
  obj-$(CONFIG_RISCV_SBI_MPXY_MBOX)	+= riscv-sbi-mpxy-mbox.o
 +
 +obj-$(CONFIG_MBOX_RP1) += rp1-mailbox.o
@@ -1272,7 +1272,7 @@ index 55a9fea95..b0cc959ee 100644
 @@ -2517,6 +2517,18 @@ config MFD_QNAP_MCU
  	  This driver implements the base serial protocol to talk to the
  	  device and provides functions for the other parts to hook into.
-
+ 
 +config MFD_RP1
 +	tristate "RP1 MFD driver"
 +	depends on PCI
@@ -1294,7 +1294,7 @@ index 865e9f12f..57cde0542 100644
 +++ b/drivers/mfd/Makefile
 @@ -303,3 +303,5 @@ obj-$(CONFIG_MFD_RSMU_SPI)	+= rsmu_spi.o rsmu_core.o
  obj-$(CONFIG_MFD_UPBOARD_FPGA)	+= upboard-fpga.o
-
+ 
  obj-$(CONFIG_MFD_LOONGSON_SE)	+= loongson-se.o
 +
 +obj-$(CONFIG_MFD_RP1)		+= rp1.o
@@ -1776,10 +1776,9 @@ index b32a2597d..94f44e6c2 100644
  obj-y				+= amd-sbi/
 -obj-$(CONFIG_MISC_RP1)		+= rp1/
 diff --git a/drivers/misc/rp1/Kconfig b/drivers/misc/rp1/Kconfig
-deleted file mode 100644
-index 5232e70d3..000000000
+index 5232e70d3..e69de29bb 100644
 --- a/drivers/misc/rp1/Kconfig
-+++ /dev/null
++++ b/drivers/misc/rp1/Kconfig
 @@ -1,20 +0,0 @@
 -# SPDX-License-Identifier: GPL-2.0-only
 -#
@@ -1802,19 +1801,17 @@ index 5232e70d3..000000000
 -	  This driver uses an overlay to load other drivers to support for
 -	  RP1 internal sub-devices.
 diff --git a/drivers/misc/rp1/Makefile b/drivers/misc/rp1/Makefile
-deleted file mode 100644
-index 508b4cb05..000000000
+index 508b4cb05..e69de29bb 100644
 --- a/drivers/misc/rp1/Makefile
-+++ /dev/null
++++ b/drivers/misc/rp1/Makefile
 @@ -1,3 +0,0 @@
 -# SPDX-License-Identifier: GPL-2.0-only
 -obj-$(CONFIG_MISC_RP1)		+= rp1-pci.o
 -rp1-pci-objs			:= rp1_pci.o rp1-pci.dtbo.o
 diff --git a/drivers/misc/rp1/rp1-pci.dtso b/drivers/misc/rp1/rp1-pci.dtso
-deleted file mode 100644
-index eea826b36..000000000
+index eea826b36..e69de29bb 100644
 --- a/drivers/misc/rp1/rp1-pci.dtso
-+++ /dev/null
++++ b/drivers/misc/rp1/rp1-pci.dtso
 @@ -1,25 +0,0 @@
 -// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 -
@@ -1842,10 +1839,9 @@ index eea826b36..000000000
 -	};
 -};
 diff --git a/drivers/misc/rp1/rp1_pci.c b/drivers/misc/rp1/rp1_pci.c
-deleted file mode 100644
-index a342bcc61..000000000
+index a342bcc61..e69de29bb 100644
 --- a/drivers/misc/rp1/rp1_pci.c
-+++ /dev/null
++++ b/drivers/misc/rp1/rp1_pci.c
 @@ -1,336 +0,0 @@
 -// SPDX-License-Identifier: GPL-2.0
 -/*
@@ -2184,27 +2180,460 @@ index a342bcc61..000000000
 -MODULE_DESCRIPTION("RaspberryPi RP1 misc device");
 -MODULE_LICENSE("GPL");
 diff --git a/drivers/net/ethernet/cadence/macb.h b/drivers/net/ethernet/cadence/macb.h
-index 0830c4897..b583f635f 100644
+index 0830c4897..0f2dd0ef1 100644
 --- a/drivers/net/ethernet/cadence/macb.h
 +++ b/drivers/net/ethernet/cadence/macb.h
-@@ -1260,6 +1260,11 @@ struct macb_queue {
+@@ -86,6 +86,8 @@
+ #define GEM_PBUFRXCUT		0x0044 /* RX Partial Store and Forward */
+ #define GEM_JML			0x0048 /* Jumbo Max Length */
+ #define GEM_HS_MAC_CONFIG	0x0050 /* GEM high speed config */
++#define GEM_AMP			0x0054 /* AXI Max Pipeline */
++#define GEM_INTMOD		0x005c /* Interrupt moderation */
+ #define GEM_HRB			0x0080 /* Hash Bottom */
+ #define GEM_HRT			0x0084 /* Hash Top */
+ #define GEM_SA1B		0x0088 /* Specific1 Bottom */
+@@ -174,6 +176,10 @@
+ #define GEM_PCSANNPTX		0x021c /* PCS AN Next Page TX */
+ #define GEM_PCSANNPLP		0x0220 /* PCS AN Next Page LP */
+ #define GEM_PCSANEXTSTS		0x023c /* PCS AN Extended Status */
++#define GEM_RXLPI		0x0270 /* RX LPI Transitions */
++#define GEM_RXLPITIME		0x0274 /* RX LPI Time */
++#define GEM_TXLPI		0x0278 /* TX LPI Transitions */
++#define GEM_TXLPITIME		0x027c /* TX LPI Time */
+ #define GEM_DCFG1		0x0280 /* Design Config 1 */
+ #define GEM_DCFG2		0x0284 /* Design Config 2 */
+ #define GEM_DCFG3		0x0288 /* Design Config 3 */
+@@ -309,6 +315,8 @@
+ #define MACB_IRXFCS_SIZE	1
+ 
+ /* GEM specific NCR bitfields. */
++#define GEM_TXLPIEN_OFFSET		19
++#define GEM_TXLPIEN_SIZE		1
+ #define GEM_ENABLE_HS_MAC_OFFSET	31
+ #define GEM_ENABLE_HS_MAC_SIZE		1
+ 
+@@ -360,6 +368,21 @@
+ #define GEM_ADDR64_OFFSET	30 /* Address bus width - 64b or 32b */
+ #define GEM_ADDR64_SIZE		1
+ 
++/* Bitfields in AMP */
++#define GEM_AR2R_MAX_PIPE_OFFSET	0  /* Maximum number of outstanding AXI read requests */
++#define GEM_AR2R_MAX_PIPE_SIZE		8
++#define GEM_AW2W_MAX_PIPE_OFFSET	8  /* Maximum number of outstanding AXI write requests */
++#define GEM_AW2W_MAX_PIPE_SIZE		8
++#define GEM_AW2B_FILL_OFFSET		16 /* Select wether the max AW2W transactions operates between: */
++#define GEM_AW2B_FILL_AW2W		0  /*   0: the AW to W AXI channel */
++#define GEM_AW2B_FILL_AW2B		1  /*   1: AW to B channel */
++#define GEM_AW2B_FILL_SIZE              1
++
++/* Bitfields in INTMOD */
++#define GEM_RX_MODERATION_OFFSET	0  /* RX interrupt moderation */
++#define GEM_RX_MODERATION_SIZE		8
++#define GEM_TX_MODERATION_OFFSET	16 /* TX interrupt moderation */
++#define GEM_TX_MODERATION_SIZE		8
+ 
+ /* Bitfields in PBUFRXCUT */
+ #define GEM_ENCUTTHRU_OFFSET	31 /* Enable RX partial store and forward */
+@@ -769,6 +792,7 @@
+ #define MACB_CAPS_NEED_TSUCLK			0x00000400
+ #define MACB_CAPS_QUEUE_DISABLE			0x00000800
+ #define MACB_CAPS_QBV				0x00001000
++#define MACB_CAPS_EEE				0x00002000
+ #define MACB_CAPS_PCS				0x01000000
+ #define MACB_CAPS_HIGH_SPEED			0x02000000
+ #define MACB_CAPS_CLK_HW_CHG			0x04000000
+@@ -843,6 +867,7 @@
+ 	})
+ 
+ #define MACB_READ_NSR(bp)	macb_readl(bp, NSR)
++#define MACB_READ_TSR(bp)	macb_readl(bp, TSR)
+ 
+ /* struct macb_dma_desc - Hardware DMA descriptor
+  * @addr: DMA address of data buffer
+@@ -1048,6 +1073,10 @@ struct gem_stats {
+ 	u64	rx_ip_header_checksum_errors;
+ 	u64	rx_tcp_checksum_errors;
+ 	u64	rx_udp_checksum_errors;
++	u64	rx_lpi_transitions;
++	u64	rx_lpi_time;
++	u64	tx_lpi_transitions;
++	u64	tx_lpi_time;
+ };
+ 
+ /* Describes the name and offset of an individual statistic register, as
+@@ -1147,6 +1176,10 @@ static const struct gem_statistic gem_statistics[] = {
+ 			    GEM_BIT(NDS_RXERR)),
+ 	GEM_STAT_TITLE_BITS(RXUDPCCNT, "rx_udp_checksum_errors",
+ 			    GEM_BIT(NDS_RXERR)),
++	GEM_STAT_TITLE(RXLPI, "rx_lpi_transitions"),
++	GEM_STAT_TITLE(RXLPITIME, "rx_lpi_time"),
++	GEM_STAT_TITLE(TXLPI, "tx_lpi_transitions"),
++	GEM_STAT_TITLE(TXLPITIME, "tx_lpi_time"),
+ };
+ 
+ #define GEM_STATS_LEN ARRAY_SIZE(gem_statistics)
+@@ -1260,6 +1293,11 @@ struct macb_queue {
  	dma_addr_t		tx_ring_dma;
  	struct work_struct	tx_error_task;
  	bool			txubr_pending;
-+
++	bool			tx_pending;
 +	/* TX stall watchdog -- see macb_tx_stall_watchdog() in macb_main.c */
 +	struct delayed_work	tx_stall_watchdog_work;
 +	unsigned int		tx_stall_last_tail;
 +
  	struct napi_struct	napi_tx;
-
+ 
  	dma_addr_t		rx_ring_dma;
+@@ -1327,9 +1365,15 @@ struct macb {
+ 
+ 	u32			caps;
+ 	unsigned int		dma_burst_length;
++	u8			aw2w_max_pipe;
++	u8			ar2r_max_pipe;
++	bool			use_aw2b_fill;
+ 
+ 	phy_interface_t		phy_interface;
+ 
++	struct gpio_desc	*phy_reset_gpio;
++	int			phy_reset_ms;
++
+ 	/* AT91RM9200 transmit queue (1 on wire + 1 queued) */
+ 	struct macb_tx_skb	rm9200_txq[2];
+ 	unsigned int		max_tx_length;
+@@ -1366,6 +1410,11 @@ struct macb {
+ 
+ 	struct work_struct	hresp_err_bh_work;
+ 
++	/* EEE / LPI state */
++	bool			eee_active;
++	struct delayed_work	tx_lpi_work;
++	u32			tx_lpi_timer;
++
+ 	int	rx_bd_rd_prefetch;
+ 	int	tx_bd_rd_prefetch;
+ 
 diff --git a/drivers/net/ethernet/cadence/macb_main.c b/drivers/net/ethernet/cadence/macb_main.c
-index 90550055c..f6abe632a 100644
+index 17d4a3e03..58fe73b62 100644
 --- a/drivers/net/ethernet/cadence/macb_main.c
 +++ b/drivers/net/ethernet/cadence/macb_main.c
-@@ -1714,6 +1714,13 @@ static void macb_tx_restart(struct macb_queue *queue)
-
+@@ -10,9 +10,12 @@
+ #include <linux/clk-provider.h>
+ #include <linux/clk.h>
+ #include <linux/crc32.h>
++#include <linux/delay.h>
+ #include <linux/dma-mapping.h>
+ #include <linux/etherdevice.h>
+ #include <linux/firmware/xlnx-zynqmp.h>
++#include <linux/gcd.h>
++#include <linux/gpio/consumer.h>
+ #include <linux/inetdevice.h>
+ #include <linux/inetdevice.h>
+ #include <linux/init.h>
+@@ -41,6 +44,9 @@
+ #include <net/pkt_sched.h>
+ #include "macb.h"
+ 
++static unsigned int txdelay = 35;
++module_param(txdelay, uint, 0644);
++
+ /* This structure is only used for MACB on SiFive FU540 devices */
+ struct sifive_fu540_macb_mgmt {
+ 	void __iomem *reg;
+@@ -330,7 +336,7 @@ static int macb_mdio_wait_for_idle(struct macb *bp)
+ 	u32 val;
+ 
+ 	return readx_poll_timeout(MACB_READ_NSR, bp, val, val & MACB_BIT(IDLE),
+-				  1, MACB_MDIO_TIMEOUT);
++				  100, MACB_MDIO_TIMEOUT);
+ }
+ 
+ static int macb_mdio_read_c22(struct mii_bus *bus, int mii_id, int regnum)
+@@ -489,6 +495,19 @@ static int macb_mdio_write_c45(struct mii_bus *bus, int mii_id,
+ 	return status;
+ }
+ 
++static int macb_mdio_reset(struct mii_bus *bus)
++{
++	struct macb *bp = bus->priv;
++
++	if (bp->phy_reset_gpio) {
++		gpiod_set_value_cansleep(bp->phy_reset_gpio, 1);
++		msleep(bp->phy_reset_ms);
++		gpiod_set_value_cansleep(bp->phy_reset_gpio, 0);
++	}
++
++	return 0;
++}
++
+ static void macb_init_buffers(struct macb *bp)
+ {
+ 	struct macb_queue *queue;
+@@ -627,6 +646,107 @@ static const struct phylink_pcs_ops macb_phylink_pcs_ops = {
+ 	.pcs_config = macb_pcs_config,
+ };
+ 
++static bool macb_tx_lpi_set(struct macb *bp, bool enable)
++{
++	u32 old, ncr;
++
++	lockdep_assert_held(&bp->lock);
++
++	ncr = macb_readl(bp, NCR);
++	old = ncr;
++	if (enable)
++		ncr |= GEM_BIT(TXLPIEN);
++	else
++		ncr &= ~GEM_BIT(TXLPIEN);
++	if (old != ncr)
++		macb_writel(bp, NCR, ncr);
++
++	return old != ncr;
++}
++
++static bool macb_tx_all_queues_idle(struct macb *bp)
++{
++	struct macb_queue *queue;
++	unsigned int q;
++
++	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
++		if (READ_ONCE(queue->tx_head) != READ_ONCE(queue->tx_tail))
++			return false;
++	}
++	return true;
++}
++
++static void macb_tx_lpi_work_fn(struct work_struct *work)
++{
++	struct macb *bp = container_of(work, struct macb, tx_lpi_work.work);
++	unsigned long flags;
++
++	spin_lock_irqsave(&bp->lock, flags);
++	if (bp->eee_active && macb_tx_all_queues_idle(bp))
++		macb_tx_lpi_set(bp, true);
++	spin_unlock_irqrestore(&bp->lock, flags);
++}
++
++static void macb_tx_lpi_schedule(struct macb *bp)
++{
++	if (bp->eee_active)
++		mod_delayed_work(system_wq, &bp->tx_lpi_work,
++				 usecs_to_jiffies(bp->tx_lpi_timer));
++}
++
++/* Wake from LPI before transmitting. The MAC must deassert TXLPIEN
++ * and wait for the PHY to exit LPI before any frame can be sent.
++ * IEEE 802.3az Tw_sys is ~17us for 1000BASE-T, ~30us for 100BASE-TX;
++ * we use a conservative 50us.
++ */
++static void macb_tx_lpi_wake(struct macb *bp)
++{
++	lockdep_assert_held(&bp->lock);
++
++	if (!bp->eee_active)
++		return;
++
++	if (!macb_tx_lpi_set(bp, false))
++		return;
++
++	cancel_delayed_work(&bp->tx_lpi_work);
++	udelay(50);
++}
++
++static void macb_mac_disable_tx_lpi(struct phylink_config *config)
++{
++	struct net_device *ndev = to_net_dev(config->dev);
++	struct macb *bp = netdev_priv(ndev);
++	unsigned long flags;
++
++	cancel_delayed_work_sync(&bp->tx_lpi_work);
++
++	spin_lock_irqsave(&bp->lock, flags);
++	bp->eee_active = false;
++	macb_tx_lpi_set(bp, false);
++	spin_unlock_irqrestore(&bp->lock, flags);
++}
++
++static int macb_mac_enable_tx_lpi(struct phylink_config *config, u32 timer,
++				  bool tx_clk_stop)
++{
++	struct net_device *ndev = to_net_dev(config->dev);
++	struct macb *bp = netdev_priv(ndev);
++	unsigned long flags;
++
++	spin_lock_irqsave(&bp->lock, flags);
++	bp->tx_lpi_timer = timer;
++	bp->eee_active = true;
++	spin_unlock_irqrestore(&bp->lock, flags);
++
++	/* Defer initial LPI entry by 1 second after link-up per
++	 * IEEE 802.3az section 22.7a.
++	 */
++	mod_delayed_work(system_wq, &bp->tx_lpi_work, msecs_to_jiffies(1000));
++
++	return 0;
++}
++
+ static void macb_mac_config(struct phylink_config *config, unsigned int mode,
+ 			    const struct phylink_link_state *state)
+ {
+@@ -797,6 +917,97 @@ static void gem_shuffle_tx_rings(struct macb *bp)
+ 		gem_shuffle_tx_one_ring(queue);
+ }
+ 
++/* Use juggling algorithm to left rotate tx ring and tx skb array */
++static void gem_shuffle_tx_one_ring(struct macb_queue *queue)
++{
++	unsigned int head, tail, count, ring_size, desc_size;
++	struct macb_tx_skb tx_skb, *skb_curr, *skb_next;
++	struct macb_dma_desc *desc_curr, *desc_next;
++	unsigned int i, cycles, shift, curr, next;
++	struct macb *bp = queue->bp;
++	unsigned char desc[24];
++	unsigned long flags;
++
++	desc_size = macb_dma_desc_get_size(bp);
++
++	if (WARN_ON_ONCE(desc_size > ARRAY_SIZE(desc)))
++		return;
++
++	spin_lock_irqsave(&queue->tx_ptr_lock, flags);
++	head = queue->tx_head;
++	tail = queue->tx_tail;
++	ring_size = bp->tx_ring_size;
++	count = CIRC_CNT(head, tail, ring_size);
++
++	if (!(tail % ring_size))
++		goto unlock;
++
++	if (!count) {
++		queue->tx_head = 0;
++		queue->tx_tail = 0;
++		goto unlock;
++	}
++
++	shift = tail % ring_size;
++	cycles = gcd(ring_size, shift);
++
++	for (i = 0; i < cycles; i++) {
++		memcpy(&desc, macb_tx_desc(queue, i), desc_size);
++		memcpy(&tx_skb, macb_tx_skb(queue, i),
++		       sizeof(struct macb_tx_skb));
++
++		curr = i;
++		next = (curr + shift) % ring_size;
++
++		while (next != i) {
++			desc_curr = macb_tx_desc(queue, curr);
++			desc_next = macb_tx_desc(queue, next);
++
++			memcpy(desc_curr, desc_next, desc_size);
++
++			if (next == ring_size - 1)
++				desc_curr->ctrl &= ~MACB_BIT(TX_WRAP);
++			if (curr == ring_size - 1)
++				desc_curr->ctrl |= MACB_BIT(TX_WRAP);
++
++			skb_curr = macb_tx_skb(queue, curr);
++			skb_next = macb_tx_skb(queue, next);
++			memcpy(skb_curr, skb_next, sizeof(struct macb_tx_skb));
++
++			curr = next;
++			next = (curr + shift) % ring_size;
++		}
++
++		desc_curr = macb_tx_desc(queue, curr);
++		memcpy(desc_curr, &desc, desc_size);
++		if (i == ring_size - 1)
++			desc_curr->ctrl &= ~MACB_BIT(TX_WRAP);
++		if (curr == ring_size - 1)
++			desc_curr->ctrl |= MACB_BIT(TX_WRAP);
++		memcpy(macb_tx_skb(queue, curr), &tx_skb,
++		       sizeof(struct macb_tx_skb));
++	}
++
++	queue->tx_head = count;
++	queue->tx_tail = 0;
++
++	/* Make descriptor updates visible to hardware */
++	wmb();
++
++unlock:
++	spin_unlock_irqrestore(&queue->tx_ptr_lock, flags);
++}
++
++/* Rotate the queue so that the tail is at index 0 */
++static void gem_shuffle_tx_rings(struct macb *bp)
++{
++	struct macb_queue *queue;
++	int q;
++
++	for (q = 0, queue = bp->queues; q < bp->num_queues; q++, queue++)
++		gem_shuffle_tx_one_ring(queue);
++}
++
+ static void macb_mac_link_up(struct phylink_config *config,
+ 			     struct phy_device *phy,
+ 			     unsigned int mode, phy_interface_t interface,
+@@ -882,6 +1093,8 @@ static const struct phylink_mac_ops macb_phylink_ops = {
+ 	.mac_config = macb_mac_config,
+ 	.mac_link_down = macb_mac_link_down,
+ 	.mac_link_up = macb_mac_link_up,
++	.mac_disable_tx_lpi = macb_mac_disable_tx_lpi,
++	.mac_enable_tx_lpi = macb_mac_enable_tx_lpi,
+ };
+ 
+ static bool macb_phy_handle_exists(struct device_node *dn)
+@@ -977,6 +1190,18 @@ static int macb_mii_probe(struct net_device *dev)
+ 		}
+ 	}
+ 
++	/* Configure EEE LPI if supported */
++	if (bp->caps & MACB_CAPS_EEE) {
++		__set_bit(PHY_INTERFACE_MODE_MII,
++			  bp->phylink_config.lpi_interfaces);
++		__set_bit(PHY_INTERFACE_MODE_GMII,
++			  bp->phylink_config.lpi_interfaces);
++		phy_interface_set_rgmii(bp->phylink_config.lpi_interfaces);
++		bp->phylink_config.lpi_capabilities = MAC_100FD | MAC_1000FD;
++		bp->phylink_config.lpi_timer_default = 250000;
++		bp->phylink_config.eee_enabled_default = true;
++	}
++
+ 	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwnode,
+ 				     bp->phy_interface, &macb_phylink_ops);
+ 	if (IS_ERR(bp->phylink)) {
+@@ -1043,6 +1268,7 @@ static int macb_mii_init(struct macb *bp)
+ 	bp->mii_bus->write = &macb_mdio_write_c22;
+ 	bp->mii_bus->read_c45 = &macb_mdio_read_c45;
+ 	bp->mii_bus->write_c45 = &macb_mdio_write_c45;
++	bp->mii_bus->reset = &macb_mdio_reset;
+ 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+ 		 bp->pdev->name, bp->pdev->id);
+ 	bp->mii_bus->priv = bp;
+@@ -1377,6 +1603,9 @@ static int macb_tx_complete(struct macb_queue *queue, int budget)
+ 		netif_wake_subqueue(bp->dev, queue_index);
+ 	spin_unlock_irqrestore(&queue->tx_ptr_lock, flags);
+ 
++	if (packets)
++		macb_tx_lpi_schedule(bp);
++
+ 	return packets;
+ }
+ 
+@@ -1719,6 +1948,11 @@ static int macb_rx(struct macb_queue *queue, struct napi_struct *napi,
+ 
+ 		macb_init_rx_ring(queue);
+ 		queue_writel(queue, RBQP, queue->rx_ring_dma);
++#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
++		if (bp->hw_dma_cap & HW_DMA_CAP_64B)
++			macb_writel(bp, RBQPH,
++				    upper_32_bits(queue->rx_ring_dma));
++#endif
+ 
+ 		macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
+ 
+@@ -1807,6 +2041,13 @@ static void macb_tx_restart(struct macb_queue *queue)
+ 
  	spin_lock(&bp->lock);
  	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
 +	/*
@@ -2215,12 +2644,12 @@ index 90550055c..f6abe632a 100644
 +	 */
 +	(void)macb_readl(bp, NCR);
  	spin_unlock(&bp->lock);
-
+ 
  out_tx_ptr_unlock:
-@@ -1758,17 +1765,26 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
+@@ -1851,17 +2092,26 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
  	if (work_done < budget && napi_complete_done(napi, work_done)) {
  		queue_writel(queue, IER, MACB_BIT(TCOMP));
-
+ 
 -		/* Packet completions only seem to propagate to raise
 -		 * interrupts when interrupts are enabled at the time, so if
 -		 * packets were sent while interrupts were disabled,
@@ -2254,10 +2683,10 @@ index 90550055c..f6abe632a 100644
  			queue_writel(queue, IDR, MACB_BIT(TCOMP));
  			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
  				queue_writel(queue, ISR, MACB_BIT(TCOMP));
-@@ -1780,6 +1796,59 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
+@@ -1873,6 +2123,59 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
  	return work_done;
  }
-
+ 
 +#define MACB_TX_STALL_INTERVAL_MS	1000
 +
 +/*
@@ -2314,7 +2743,96 @@ index 90550055c..f6abe632a 100644
  static void macb_hresp_error_task(struct work_struct *work)
  {
  	struct macb *bp = from_work(bp, work, hresp_err_bh_work);
-@@ -2994,6 +3063,9 @@ static int macb_open(struct net_device *dev)
+@@ -2021,8 +2324,9 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
+ 				queue_writel(queue, ISR, MACB_BIT(TCOMP) |
+ 							 MACB_BIT(TXUBR));
+ 
+-			if (status & MACB_BIT(TXUBR)) {
++			if (status & MACB_BIT(TXUBR) || queue->tx_pending) {
+ 				queue->txubr_pending = true;
++				queue->tx_pending = 0;
+ 				wmb(); // ensure softirq can see update
+ 			}
+ 
+@@ -2480,6 +2784,12 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
+ 			     skb->len);
+ 
+ 	spin_lock(&bp->lock);
++	macb_tx_lpi_wake(bp);
++
++	/* TSTART write might get dropped, so make the IRQ retrigger a buffer read */
++	if (macb_readl(bp, TSR) & MACB_BIT(TGO))
++		queue->tx_pending = 1;
++
+ 	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
+ 	spin_unlock(&bp->lock);
+ 
+@@ -2715,6 +3025,14 @@ static void gem_init_rx_ring(struct macb_queue *queue)
+ 	gem_rx_refill(queue);
+ }
+ 
++static void gem_init_rx_ring(struct macb_queue *queue)
++{
++	queue->rx_tail = 0;
++	queue->rx_prepared_head = 0;
++
++	gem_rx_refill(queue);
++}
++
+ static void gem_init_rings(struct macb *bp)
+ {
+ 	struct macb_queue *queue;
+@@ -2908,6 +3226,37 @@ static void macb_configure_dma(struct macb *bp)
+ 	}
+ }
+ 
++static void gem_init_axi(struct macb *bp)
++{
++	u32 amp;
++
++	/* AXI pipeline setup - don't touch values unless specified in device
++	 * tree. Some hardware could have reset values > 1.
++	 */
++	amp = gem_readl(bp, AMP);
++
++	if (bp->use_aw2b_fill)
++		amp = GEM_BFINS(AW2B_FILL, bp->use_aw2b_fill, amp);
++	if (bp->aw2w_max_pipe)
++		amp = GEM_BFINS(AW2W_MAX_PIPE, bp->aw2w_max_pipe, amp);
++	if (bp->ar2r_max_pipe)
++		amp = GEM_BFINS(AR2R_MAX_PIPE, bp->ar2r_max_pipe, amp);
++
++	gem_writel(bp, AMP, amp);
++}
++
++static void gem_init_intmod(struct macb *bp)
++{
++	unsigned int throttle;
++	u32 intmod = 0;
++
++	/* Use sensible interrupt moderation thresholds (50us rx and tx) */
++	throttle = (1000 * 50) / 800;
++	intmod = GEM_BFINS(TX_MODERATION, throttle, intmod);
++	intmod = GEM_BFINS(RX_MODERATION, throttle, intmod);
++	gem_writel(bp, INTMOD, intmod);
++}
++
+ static void macb_init_hw(struct macb *bp)
+ {
+ 	u32 config;
+@@ -2936,6 +3285,11 @@ static void macb_init_hw(struct macb *bp)
+ 	if (bp->caps & MACB_CAPS_JUMBO)
+ 		bp->rx_frm_len_mask = MACB_RX_JFRMLEN_MASK;
+ 
++	if (macb_is_gem(bp)) {
++		gem_init_axi(bp);
++		gem_init_intmod(bp);
++	}
++
+ 	macb_configure_dma(bp);
+ 
+ 	/* Enable RX partial store and forward and set watermark */
+@@ -3092,6 +3446,9 @@ static int macb_open(struct net_device *dev)
  	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
  		napi_enable(&queue->napi_rx);
  		napi_enable(&queue->napi_tx);
@@ -2322,25 +2840,348 @@ index 90550055c..f6abe632a 100644
 +		schedule_delayed_work(&queue->tx_stall_watchdog_work,
 +				      msecs_to_jiffies(MACB_TX_STALL_INTERVAL_MS));
  	}
-
+ 
  	macb_init_hw(bp);
-@@ -3040,6 +3112,7 @@ static int macb_close(struct net_device *dev)
- 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
- 		napi_disable(&queue->napi_rx);
- 		napi_disable(&queue->napi_tx);
-+		cancel_delayed_work_sync(&queue->tx_stall_watchdog_work);
+@@ -3141,6 +3498,8 @@ static int macb_close(struct net_device *dev)
  		netdev_tx_reset_queue(netdev_get_tx_queue(dev, q));
  	}
-
-@@ -4567,6 +4640,8 @@ static int macb_init(struct platform_device *pdev)
+ 
++	cancel_delayed_work_sync(&bp->tx_lpi_work);
++
+ 	phylink_stop(bp->phylink);
+ 	phylink_disconnect_phy(bp->phylink);
+ 
+@@ -3299,6 +3658,52 @@ static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
+ 	}
+ }
+ 
++static int gem_set_coalesce(struct net_device *dev,
++			    struct ethtool_coalesce *ec,
++			    struct kernel_ethtool_coalesce *kernel_coal,
++			    struct netlink_ext_ack *extack)
++{
++	struct macb *bp = netdev_priv(dev);
++	unsigned int tx_throttle;
++	unsigned int rx_throttle;
++	u32 intmod = 0;
++
++	/* GEM has simple IRQ throttling support. RX and TX interrupts
++	 * are separately moderated on 800ns quantums, with no support
++	 * for frame coalescing.
++	 */
++
++	/* Max is 255 * 0.8us = 204us. Zero implies no moderation. */
++	if (ec->rx_coalesce_usecs > 204 || ec->tx_coalesce_usecs > 204)
++		return -EINVAL;
++
++	tx_throttle = (1000 * ec->tx_coalesce_usecs) / 800;
++	rx_throttle = (1000 * ec->rx_coalesce_usecs) / 800;
++
++	intmod = GEM_BFINS(TX_MODERATION, tx_throttle, intmod);
++	intmod = GEM_BFINS(RX_MODERATION, rx_throttle, intmod);
++
++	gem_writel(bp, INTMOD, intmod);
++
++	return 0;
++}
++
++static int gem_get_coalesce(struct net_device *dev,
++			    struct ethtool_coalesce *ec,
++			    struct kernel_ethtool_coalesce *kernel_coal,
++			    struct netlink_ext_ack *extack)
++{
++	struct macb *bp = netdev_priv(dev);
++	u32 intmod;
++
++	intmod = gem_readl(bp, INTMOD);
++
++	ec->tx_coalesce_usecs = (GEM_BFEXT(TX_MODERATION, intmod) * 800) / 1000;
++	ec->rx_coalesce_usecs = (GEM_BFEXT(RX_MODERATION, intmod) * 800) / 1000;
++
++	return 0;
++}
++
+ static void macb_get_stats(struct net_device *dev,
+ 			   struct rtnl_link_stats64 *nstat)
+ {
+@@ -4013,6 +4418,9 @@ static int gem_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+ 	struct macb *bp = netdev_priv(netdev);
+ 	int ret;
+ 
++	if (!(netdev->hw_features & NETIF_F_NTUPLE))
++		return -EOPNOTSUPP;
++
+ 	if (!(netdev->hw_features & NETIF_F_NTUPLE))
+ 		return -EOPNOTSUPP;
+ 
+@@ -4054,7 +4462,23 @@ static const struct ethtool_ops macb_ethtool_ops = {
+ 	.set_ringparam		= macb_set_ringparam,
+ };
+ 
++static int macb_get_eee(struct net_device *dev, struct ethtool_keee *eee)
++{
++	struct macb *bp = netdev_priv(dev);
++
++	return phylink_ethtool_get_eee(bp->phylink, eee);
++}
++
++static int macb_set_eee(struct net_device *dev, struct ethtool_keee *eee)
++{
++	struct macb *bp = netdev_priv(dev);
++
++	return phylink_ethtool_set_eee(bp->phylink, eee);
++}
++
+ static const struct ethtool_ops gem_ethtool_ops = {
++	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
++				     ETHTOOL_COALESCE_TX_USECS,
+ 	.get_regs_len		= macb_get_regs_len,
+ 	.get_regs		= macb_get_regs,
+ 	.get_wol		= macb_get_wol,
+@@ -4068,12 +4492,16 @@ static const struct ethtool_ops gem_ethtool_ops = {
+ 	.get_eth_mac_stats	= gem_get_eth_mac_stats,
+ 	.get_eth_phy_stats	= gem_get_eth_phy_stats,
+ 	.get_rmon_stats		= gem_get_rmon_stats,
++	.get_coalesce		= gem_get_coalesce,
++	.set_coalesce		= gem_set_coalesce,
+ 	.get_link_ksettings     = macb_get_link_ksettings,
+ 	.set_link_ksettings     = macb_set_link_ksettings,
+ 	.get_ringparam		= macb_get_ringparam,
+ 	.set_ringparam		= macb_set_ringparam,
+ 	.get_rxnfc			= gem_get_rxnfc,
+ 	.set_rxnfc			= gem_set_rxnfc,
++	.get_eee		= macb_get_eee,
++	.set_eee		= macb_set_eee,
+ };
+ 
+ static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+@@ -4668,6 +5096,8 @@ static int macb_init(struct platform_device *pdev)
  		}
-
+ 
  		INIT_WORK(&queue->tx_error_task, macb_tx_error_task);
 +		INIT_DELAYED_WORK(&queue->tx_stall_watchdog_work,
 +				  macb_tx_stall_watchdog);
  		q++;
  	}
-
+ 
+@@ -5474,7 +5904,8 @@ static const struct macb_config versal_config = {
+ static const struct macb_config raspberrypi_rp1_config = {
+ 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_CLK_HW_CHG |
+ 		MACB_CAPS_JUMBO |
+-		MACB_CAPS_GEM_HAS_PTP,
++		MACB_CAPS_GEM_HAS_PTP |
++		MACB_CAPS_EEE,
+ 	.dma_burst_length = 16,
+ 	.clk_init = macb_clk_init,
+ 	.init = macb_init,
+@@ -5634,6 +6065,11 @@ static int macb_probe(struct platform_device *pdev)
+ 			}
+ 		}
+ 	}
++
++	device_property_read_u8(&pdev->dev, "cdns,aw2w-max-pipe", &bp->aw2w_max_pipe);
++	device_property_read_u8(&pdev->dev, "cdns,ar2r-max-pipe", &bp->ar2r_max_pipe);
++	bp->use_aw2b_fill = device_property_read_bool(&pdev->dev, "cdns,use-aw2b-fill");
++
+ 	spin_lock_init(&bp->lock);
+ 	spin_lock_init(&bp->stats_lock);
+ 
+@@ -5694,6 +6130,21 @@ static int macb_probe(struct platform_device *pdev)
+ 	else
+ 		bp->phy_interface = interface;
+ 
++	/* optional PHY reset-related properties */
++	bp->phy_reset_gpio = devm_gpiod_get_optional(&pdev->dev, "phy-reset",
++						     GPIOD_OUT_LOW);
++	if (IS_ERR(bp->phy_reset_gpio)) {
++		dev_err(&pdev->dev, "Failed to obtain phy-reset gpio\n");
++		err = PTR_ERR(bp->phy_reset_gpio);
++		goto err_out_free_netdev;
++	}
++
++	bp->phy_reset_ms = 10;
++	of_property_read_u32(np, "phy-reset-duration", &bp->phy_reset_ms);
++	/* A sane reset duration should not be longer than 1s */
++	if (bp->phy_reset_ms > 1000)
++		bp->phy_reset_ms = 1000;
++
+ 	/* IP specific init */
+ 	err = init(pdev);
+ 	if (err)
+@@ -5712,6 +6163,7 @@ static int macb_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	INIT_WORK(&bp->hresp_err_bh_work, macb_hresp_error_task);
++	INIT_DELAYED_WORK(&bp->tx_lpi_work, macb_tx_lpi_work_fn);
+ 
+ 	netdev_info(dev, "Cadence %s rev 0x%08x at 0x%08lx irq %d (%pM)\n",
+ 		    macb_is_gem(bp) ? "GEM" : "MACB", macb_readl(bp, MID),
+@@ -5756,6 +6208,7 @@ static void macb_remove(struct platform_device *pdev)
+ 		mdiobus_free(bp->mii_bus);
+ 
+ 		device_set_wakeup_enable(&bp->pdev->dev, 0);
++		cancel_delayed_work_sync(&bp->tx_lpi_work);
+ 		cancel_work_sync(&bp->hresp_err_bh_work);
+ 		pm_runtime_disable(&pdev->dev);
+ 		pm_runtime_dont_use_autosuspend(&pdev->dev);
+diff --git a/drivers/net/phy/broadcom.c b/drivers/net/phy/broadcom.c
+index cb306f9e8..4d9b6ad85 100644
+--- a/drivers/net/phy/broadcom.c
++++ b/drivers/net/phy/broadcom.c
+@@ -123,6 +123,11 @@ static int bcm54210e_config_init(struct phy_device *phydev)
+ 	return 0;
+ }
+ 
++static int bcm54213pe_config_init(struct phy_device *phydev)
++{
++	return bcm54210e_config_init(phydev);
++}
++
+ static int bcm54612e_config_init(struct phy_device *phydev)
+ {
+ 	int reg;
+@@ -293,6 +298,7 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
+ 	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610) ||
+ 	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610M) ||
+ 	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54210E) ||
++	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54213PE) ||
+ 	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54810) ||
+ 	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54811)))
+ 		return;
+@@ -458,18 +464,17 @@ static int bcm54811_config_init(struct phy_device *phydev)
+ static int bcm54xx_config_init(struct phy_device *phydev)
+ {
+ 	int reg, err, val;
++	u32 led_modes[] = {BCM_LED_MULTICOLOR_LINK_ACT,
++			   BCM_LED_MULTICOLOR_LINK};
++	struct device_node *np = phydev->mdio.dev.of_node;
+ 
+ 	reg = phy_read(phydev, MII_BCM54XX_ECR);
+ 	if (reg < 0)
+ 		return reg;
+ 
+-	/* Mask interrupts globally.  */
+-	reg |= MII_BCM54XX_ECR_IM;
+-	err = phy_write(phydev, MII_BCM54XX_ECR, reg);
+-	if (err < 0)
+-		return err;
+-
+-	/* Unmask events we are interested in.  */
++	/* Initially all interrupts are masked in IMR, so unmask events
++	 * we are interested in.
++	 */
+ 	reg = ~(MII_BCM54XX_INT_DUPLEX |
+ 		MII_BCM54XX_INT_SPEED |
+ 		MII_BCM54XX_INT_LINK);
+@@ -482,6 +487,18 @@ static int bcm54xx_config_init(struct phy_device *phydev)
+ 	    (phydev->dev_flags & PHY_BRCM_CLEAR_RGMII_MODE))
+ 		bcm_phy_write_shadow(phydev, BCM54XX_SHD_RGMII_MODE, 0);
+ 
++	if (of_property_read_bool(np, "brcm,powerdown-enable"))
++		phydev->dev_flags |= PHY_BRCM_AUTO_PWRDWN_ENABLE;
++
++	/* Disable AutogrEEEn and switch to Native EEE mode so the MAC
++	 * can control LPI signaling and observe RX LPI on the RGMII
++	 * interface.
++	 */
++	err = bcm_phy_modify_exp(phydev, BCM54XX_TOP_MISC_MII_BUF_CNTL0,
++				 BCM54XX_MII_BUF_CNTL0_AUTOGREEEN_EN, 0);
++	if (err)
++		return err;
++
+ 	bcm54xx_adjust_rxrefclk(phydev);
+ 
+ 	switch (phydev->drv->phy_id & PHY_ID_MATCH_MODEL_MASK) {
+@@ -490,6 +507,12 @@ static int bcm54xx_config_init(struct phy_device *phydev)
+ 		err = bcm54xx_config_clock_delay(phydev);
+ 		break;
+ 	case PHY_ID_BCM54210E:
++		/* BCM54213PE shares the same model ID as BCM54210E; use the
++		 * exact driver ID to dispatch to the right per-PHY init.
++		 */
++		if (phydev->drv->phy_id == PHY_ID_BCM54213PE)
++			err = bcm54213pe_config_init(phydev);
++		else
+ 		err = bcm54210e_config_init(phydev);
+ 		break;
+ 	case PHY_ID_BCM54612E:
+@@ -516,22 +539,32 @@ static int bcm54xx_config_init(struct phy_device *phydev)
+ 
+ 	bcm54xx_phydsp_config(phydev);
+ 
++	of_property_read_u32_array(np, "led-modes", led_modes, 2);
++
+ 	/* For non-SFP setups, encode link speed into LED1 and LED3 pair
+ 	 * (green/amber).
+-	 * Also flash these two LEDs on activity. This means configuring
+-	 * them for MULTICOLOR and encoding link/activity into them.
+ 	 * Don't do this for devices on an SFP module, since some of these
+ 	 * use the LED outputs to control the SFP LOS signal, and changing
+ 	 * these settings will cause LOS to malfunction.
+ 	 */
+ 	if (!phy_on_sfp(phydev)) {
++		int led_swap = of_property_read_bool(np, "led-swap") ? 1 : 0;
+ 		val = BCM54XX_SHD_LEDS1_LED1(BCM_LED_SRC_MULTICOLOR1) |
+ 			BCM54XX_SHD_LEDS1_LED3(BCM_LED_SRC_MULTICOLOR1);
+ 		bcm_phy_write_shadow(phydev, BCM54XX_SHD_LEDS1, val);
++		/* BCM54210PE controls two extra LEDs with the next register.
++		 * Make LED3 shadow LED1, but preserve LED4 as is - useful on
++		 * CM4/CM5 which use LED3 for ETH_LEDY instead of LED1. LED4
++		 * is either unused or configured as INT pin on CM5.
++		 */
++		reg = bcm_phy_read_shadow(phydev, BCM54XX_SHD_LEDS2);
++		reg &= ~(0xf << 0);
++		reg |= BCM54XX_SHD_LEDS1_LED1(BCM_LED_SRC_MULTICOLOR1);
++		bcm_phy_write_shadow(phydev, BCM54XX_SHD_LEDS2, reg);
+ 
+ 		val = BCM_LED_MULTICOLOR_IN_PHASE |
+-			BCM54XX_SHD_LEDS1_LED1(BCM_LED_MULTICOLOR_LINK_ACT) |
+-			BCM54XX_SHD_LEDS1_LED3(BCM_LED_MULTICOLOR_LINK_ACT);
++			BCM54XX_SHD_LEDS1_LED1(led_modes[0 ^ led_swap]) |
++			BCM54XX_SHD_LEDS1_LED3(led_modes[1 ^ led_swap]);
+ 		bcm_phy_write_exp(phydev, BCM_EXP_MULTICOLOR, val);
+ 	}
+ 
+@@ -1478,7 +1511,7 @@ static struct phy_driver broadcom_drivers[] = {
+ 	.handle_interrupt = bcm_phy_handle_interrupt,
+ 	.link_change_notify	= bcm54xx_link_change_notify,
+ }, {
+-	PHY_ID_MATCH_MODEL(PHY_ID_BCM54210E),
++	PHY_ID_MATCH_EXACT(PHY_ID_BCM54210E),
+ 	.name		= "Broadcom BCM54210E",
+ 	/* PHY_GBIT_FEATURES */
+ 	.flags		= PHY_ALWAYS_CALL_SUSPEND,
+@@ -1495,6 +1528,20 @@ static struct phy_driver broadcom_drivers[] = {
+ 	.get_wol	= bcm54xx_phy_get_wol,
+ 	.set_wol	= bcm54xx_phy_set_wol,
+ 	.led_brightness_set	= bcm_phy_led_brightness_set,
++}, {
++	PHY_ID_MATCH_EXACT(PHY_ID_BCM54213PE),
++	.name		= "Broadcom BCM54213PE",
++	/* PHY_GBIT_FEATURES */
++	.get_sset_count	= bcm_phy_get_sset_count,
++	.get_strings	= bcm_phy_get_strings,
++	.get_stats	= bcm54xx_get_stats,
++	.probe		= bcm54xx_phy_probe,
++	.config_init	= bcm54xx_config_init,
++	.config_intr	= bcm_phy_config_intr,
++	.handle_interrupt = bcm_phy_handle_interrupt,
++	.link_change_notify	= bcm54xx_link_change_notify,
++	.suspend	= bcm54xx_suspend,
++	.resume		= bcm54xx_resume,
+ }, {
+ 	PHY_ID_MATCH_MODEL(PHY_ID_BCM5461),
+ 	.name		= "Broadcom BCM5461",
+@@ -1744,7 +1791,8 @@ module_phy_driver(broadcom_drivers);
+ static const struct mdio_device_id __maybe_unused broadcom_tbl[] = {
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5411) },
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5421) },
+-	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54210E) },
++	{ PHY_ID_MATCH_EXACT(PHY_ID_BCM54210E) },
++	{ PHY_ID_MATCH_EXACT(PHY_ID_BCM54213PE) },
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5461) },
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54612E) },
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54616S) },
 diff --git a/drivers/pci/controller/pcie-brcmstb.c b/drivers/pci/controller/pcie-brcmstb.c
 index 7e9b2f6a6..ca8be4c1f 100644
 --- a/drivers/pci/controller/pcie-brcmstb.c
@@ -2354,17 +3195,17 @@ index 7e9b2f6a6..ca8be4c1f 100644
  #include <linux/init.h>
  #include <linux/interrupt.h>
 @@ -48,6 +49,7 @@
-
+ 
  #define PCIE_RC_CFG_PRIV1_LINK_CAPABILITY			0x04dc
  #define  PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_MAX_LINK_WIDTH_MASK	0x1f0
 +#define  PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK	0xc00
-
+ 
  #define PCIE_RC_CFG_PRIV1_ROOT_CAP			0x4f8
  #define  PCIE_RC_CFG_PRIV1_ROOT_CAP_L1SS_MODE_MASK	0xf8
 @@ -63,6 +65,34 @@
  #define  PCIE_RC_PL_PHY_CTL_15_DIS_PLL_PD_MASK		0x400000
  #define  PCIE_RC_PL_PHY_CTL_15_PM_CLK_PERIOD_MASK	0xff
-
+ 
 +#define PCIE_RC_PL_STATS_CTRL				0x1940
 +#define  PCIE_RC_PL_STATS_CTRL_EN_MASK			0x1
 +#define  PCIE_RC_PL_STATS_CTRL_LEN_MASK			0xfffffff0
@@ -2398,7 +3239,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
  #define  PCIE_MISC_MISC_CTRL_PCIE_RCB_MPS_MODE_MASK	0x400
 @@ -135,11 +165,16 @@
  		PCIE_MISC_CPU_2_PCIE_MEM_WIN0_LIMIT_HI + ((win) * 8)
-
+ 
  #define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_CLKREQ_DEBUG_ENABLE_MASK	0x2
 +#define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_PERST_ASSERT_MASK		0x8
 +#define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_REFCLK_OVRD_ENABLE_MASK		0x10000
@@ -2411,12 +3252,12 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	   PCIE_MISC_HARD_PCIE_HARD_DEBUG_REFCLK_OVRD_ENABLE_MASK | \
 +	   PCIE_MISC_HARD_PCIE_HARD_DEBUG_REFCLK_OVRD_OUT_MASK | \
  	   PCIE_MISC_HARD_PCIE_HARD_DEBUG_L1SS_ENABLE_MASK)
-
+ 
  #define PCIE_MISC_UBUS_BAR1_CONFIG_REMAP			0x40ac
 @@ -213,6 +248,58 @@
  #define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_PWRDN_MASK		0x1
  #define  PCIE_DVT_PMU_PCIE_PHY_CTRL_DAST_PWRDN_SHIFT		0x0
-
+ 
 +/* BCM7712/2712-specific registers */
 +
 +#define PCIE_RC_TL_VDM_CTL0				0x0a20
@@ -2471,11 +3312,11 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +
  /* Forward declarations */
  struct brcm_pcie;
-
+ 
 @@ -240,6 +327,91 @@ struct inbound_win {
  	u64 cpu_addr;
  };
-
+ 
 +#define TRACE_BUF_LEN 64
 +struct trace_entry {
 +	u8 st;
@@ -2567,7 +3408,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
 @@ -249,6 +421,12 @@ struct inbound_win {
   */
  #define CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN		BIT(0)
-
+ 
 +/*
 + * MDIO register map differences and required changes to the defaults mean that refclk
 + * spread-spectrum clocking isn't supportable.
@@ -2598,16 +3439,16 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	u16 l0s_fail_cnt;
 +	u16 recov_cnt;
  };
-
+ 
  static inline bool is_bmips(const struct brcm_pcie *pcie)
 @@ -473,7 +667,8 @@ static void brcm_pcie_set_outbound_win(struct brcm_pcie *pcie,
  				 MSI_FLAG_NO_AFFINITY)
-
+ 
  #define BRCM_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
 -				  MSI_FLAG_MULTI_PCI_MSI)
 +				  MSI_FLAG_MULTI_PCI_MSI	| \
 +				  MSI_FLAG_PCI_MSIX)
-
+ 
  static const struct msi_parent_ops brcm_msi_parent_ops = {
  	.required_flags		= BRCM_MSI_FLAGS_REQUIRED,
 @@ -839,6 +1034,7 @@ static int brcm_pcie_post_setup_bcm2712(struct brcm_pcie *pcie)
@@ -2615,13 +3456,13 @@ index 7e9b2f6a6..ca8be4c1f 100644
  	int ret, i;
  	u32 tmp;
 +	u8 qos_map[8];
-
+ 
  	/* Allow a 54MHz (xosc) refclk source */
  	ret = brcm_pcie_mdio_write(pcie->base, MDIO_PORT0, SET_ADDR_OFFSET, 0x1600);
 @@ -862,6 +1058,108 @@ static int brcm_pcie_post_setup_bcm2712(struct brcm_pcie *pcie)
  	tmp |= 0x12;
  	writel(tmp, pcie->base + PCIE_RC_PL_PHY_CTL_15);
-
+ 
 +	/*
 +	 * BCM7712/2712 uses a UBUS-AXI bridge.
 +	 * Suppress AXI error responses and return 1s for read failures.
@@ -2726,7 +3567,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +
  	return 0;
  }
-
+ 
 @@ -1074,7 +1372,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
  	void __iomem *base = pcie->base;
  	struct pci_host_bridge *bridge;
@@ -2737,8 +3578,8 @@ index 7e9b2f6a6..ca8be4c1f 100644
  	int num_inbound_wins = 0;
  	int memc, ret;
 @@ -1174,9 +1472,12 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
-
-
+ 
+ 
  	/* Don't advertise L0s capability if 'aspm-no-l0s' */
 +	aspm_support = PCIE_LINK_STATE_L1;
 +	if (!of_property_read_bool(pcie->np, "aspm-no-l0s"))
@@ -2749,10 +3590,10 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	u32p_replace_bits(&tmp, aspm_support,
 +		PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK);
  	writel(tmp, base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
-
+ 
  	/* 'tmp' still holds the contents of PRIV1_LINK_CAPABILITY */
 @@ -1324,35 +1625,198 @@ static void brcm_config_clkreq(struct brcm_pcie *pcie)
-
+ 
  	} else {
  		/*
 -		 * "safe" -- No power savings; refclk is driven by RC
@@ -2773,10 +3614,10 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +		writel(tmp, pcie->base + PCIE_RC_CFG_PRIV1_ROOT_CAP);
  	}
  	writel(clkreq_cntl, pcie->base + HARD_DEBUG(pcie));
-
+ 
  	dev_info(pcie->dev, "clkreq-mode set to %s\n", mode);
  }
-
+ 
 +static void brcm_pcie_stats_trigger(struct brcm_pcie *pcie, u32 micros)
 +{
 +	u32 tmp;
@@ -2913,11 +3754,11 @@ index 7e9b2f6a6..ca8be4c1f 100644
  	bool ssc_good = false;
  	int ret, i;
 +	u32 tmp;
-
+ 
  	/* Limit the generation if specified */
  	if (pcie->gen)
  		brcm_pcie_set_gen(pcie, pcie->gen);
-
+ 
 +	brcm_pcie_stats_trigger(pcie, 0);
 +
  	/* Unassert the fundamental reset */
@@ -2943,7 +3784,7 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	}
  	if (ret)
  		return ret;
-
+ 
 +	if (pcie->trace_ltssm)
 +		brcm_pcie_trace_link_start(pcie);
 +	/*
@@ -2951,12 +3792,12 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	 * sections 2.2, PCIe r5.0, 6.6.1.
 +	 */
  	msleep(PCIE_RESET_CONFIG_WAIT_MS);
-
+ 
  	/*
 @@ -1385,6 +1849,20 @@ static int brcm_pcie_start_link(struct brcm_pcie *pcie)
  		 pci_speed_string(pcie_link_speed[cls]), nlw,
  		 ssc_good ? "(SSC)" : "(!SSC)");
-
+ 
 +	/* Snapshot the boot-time stats */
 +	brcm_pcie_stats_capture(pcie);
 +
@@ -2973,9 +3814,9 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +
  	return 0;
  }
-
+ 
 @@ -1705,6 +2183,7 @@ static int brcm_pcie_resume_noirq(struct device *dev)
-
+ 
  static void __brcm_pcie_remove(struct brcm_pcie *pcie)
  {
 +	debugfs_remove_recursive(pcie->debugfs_dir);
@@ -2990,11 +3831,11 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +	.quirks		= CFG_QUIRK_AVOID_BRIDGE_SHUTDOWN | CFG_QUIRK_NO_SSC,
  	.num_inbound_wins = 10,
  };
-
+ 
 @@ -1861,6 +2340,98 @@ static struct pci_ops brcm7425_pcie_ops = {
  	.remove_bus = brcm_pcie_remove_bus,
  };
-
+ 
 +static ssize_t debugfs_stats_trigger_write(struct file *filp,
 +					   const char __user *buf,
 +					   size_t count, loff_t *ppos)
@@ -3107,19 +3948,19 @@ index 7e9b2f6a6..ca8be4c1f 100644
 +			return -ENOMEM;
 +		}
 +	}
-
+ 
  	pcie->base = devm_platform_ioremap_resource(pdev, 0);
  	if (IS_ERR(pcie->base))
 @@ -1895,7 +2479,10 @@ static int brcm_pcie_probe(struct platform_device *pdev)
  	ret = of_pci_get_max_link_speed(np);
  	pcie->gen = (ret < 0) ? 0 : ret;
-
+ 
 -	pcie->ssc = of_property_read_bool(np, "brcm,enable-ssc");
 +	pcie->ssc = !(pcie->cfg->quirks & CFG_QUIRK_NO_SSC) &&
 +		    of_property_read_bool(np, "brcm,enable-ssc");
 +
 +	of_property_read_u32(np, "brcm,tperst-clk-ms", &pcie->tperst_clk_ms);
-
+ 
  	pcie->rescal = devm_reset_control_get_optional_shared(&pdev->dev, "rescal");
  	if (IS_ERR(pcie->rescal))
 diff --git a/drivers/pinctrl/Kconfig b/drivers/pinctrl/Kconfig
@@ -3127,7 +3968,7 @@ index 4f8507ebb..41d0abc42 100644
 --- a/drivers/pinctrl/Kconfig
 +++ b/drivers/pinctrl/Kconfig
 @@ -672,8 +672,8 @@ config PINCTRL_MLXBF3
-
+ 
  config PINCTRL_RP1
  	tristate "Pinctrl driver for RP1"
 -	depends on MISC_RP1
@@ -3144,7 +3985,7 @@ index c5dbf4e9d..e0c71374f 100644
 @@ -1281,6 +1281,8 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
  	struct pinctrl_state *old_state = READ_ONCE(p->state);
  	int ret;
-
+ 
 +	dev_info(p->dev, "PINCTRL: Attempting to apply state for %s\n", p->dev->of_node->name);
 +
  	if (old_state) {
@@ -3157,7 +3998,7 @@ index ffc2f0b46..915802586 100644
 @@ -1750,6 +1750,8 @@ static int rp1_pinctrl_probe(struct platform_device *pdev)
  	struct gpio_irq_chip *girq;
  	int err, i;
-
+ 
 +	dev_info(dev, "Loading pinctl driver");
 +
  	pc->dev = dev;
@@ -3170,7 +4011,7 @@ index 3a8dd184b..563c07106 100644
 @@ -441,6 +441,14 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
  	int i;
  	struct pin_desc *desc;
-
+ 
 +	/* Add this inside pinmux_enable_setting near the start */
 +	dev_dbg(pctldev->dev, "driver '%s' requesting pin %d for function '%s' in group '%s'\n",
 +					setting->dev_name, setting->data.mux.group,
@@ -3185,14 +4026,14 @@ index 3a8dd184b..563c07106 100644
 @@ -492,6 +500,10 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
  	ret = ops->set_mux(pctldev, setting->data.mux.func,
  			   setting->data.mux.group);
-
+ 
 +	if (ret < 0)
 +		dev_err(pctldev->dev, "pin %d denied to %s (Ret: %d)\n",
 +							setting->data.mux.group, setting->dev_name, ret);
 +
  	if (ret)
  		goto err_set_mux;
-
+ 
 diff --git a/drivers/pwm/Kconfig b/drivers/pwm/Kconfig
 index c2fd3f4b6..3a81b1ecc 100644
 --- a/drivers/pwm/Kconfig
@@ -3200,7 +4041,7 @@ index c2fd3f4b6..3a81b1ecc 100644
 @@ -607,6 +607,15 @@ config PWM_RENESAS_TPU
  	  To compile this driver as a module, choose M here: the module
  	  will be called pwm-renesas-tpu.
-
+ 
 +config PWM_RP1
 +	tristate "RP1 PWM support"
 +	depends on ARCH_BCM2835 || COMPILE_TEST
@@ -3667,14 +4508,36 @@ index 000000000..80bbfd61b
 +#define RP1_DMA_PIO_CH3_RX 0x3f
 +
 +#endif
+diff --git a/include/linux/brcmphy.h b/include/linux/brcmphy.h
+index 115a964f3..5f9034cc9 100644
+--- a/include/linux/brcmphy.h
++++ b/include/linux/brcmphy.h
+@@ -24,6 +24,7 @@
+ #define PHY_ID_BCM5411			0x00206070
+ #define PHY_ID_BCM5421			0x002060e0
+ #define PHY_ID_BCM54210E		0x600d84a0
++#define PHY_ID_BCM54213PE		0x600d84a2
+ #define PHY_ID_BCM5464			0x002060b0
+ #define PHY_ID_BCM5461			0x002060c0
+ #define PHY_ID_BCM54612E		0x03625e60
+@@ -266,6 +267,9 @@
+ #define BCM54XX_TOP_MISC_IDDQ_SD		(1 << 2)
+ #define BCM54XX_TOP_MISC_IDDQ_SR		(1 << 3)
+ 
++#define BCM54XX_TOP_MISC_MII_BUF_CNTL0		(MII_BCM54XX_EXP_SEL_TOP + 0x00)
++#define  BCM54XX_MII_BUF_CNTL0_AUTOGREEEN_EN	BIT(0)
++
+ #define BCM54XX_TOP_MISC_LED_CTL		(MII_BCM54XX_EXP_SEL_TOP + 0x0C)
+ #define  BCM54XX_LED4_SEL_INTR			BIT(1)
+ 
 diff --git a/include/linux/irqdomain.h b/include/linux/irqdomain.h
 index 4a86e6b91..8fb2b76e5 100644
 --- a/include/linux/irqdomain.h
 +++ b/include/linux/irqdomain.h
 @@ -494,6 +494,12 @@ static inline unsigned int irq_find_mapping(struct irq_domain *domain,
-
+ 
  extern const struct irq_domain_ops irq_domain_simple_ops;
-
+ 
 +static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
 +					     irq_hw_number_t hwirq)
 +{
